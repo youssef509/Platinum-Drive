@@ -18,6 +18,17 @@ export async function PATCH(request: NextRequest) {
     // Validate input with Zod
     const validatedData = updateProfileSchema.parse(body)
 
+    // If email is being updated, check if it's already in use
+    if (validatedData.email && validatedData.email !== session.user.email) {
+      const existingUser = await prisma.user.findUnique({
+        where: { email: validatedData.email },
+      })
+
+      if (existingUser) {
+        return errorResponse("البريد الإلكتروني مستخدم بالفعل", 400)
+      }
+    }
+
     // Update user profile
     const updatedUser = await prisma.user.update({
       where: { id: session.user.id },

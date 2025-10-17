@@ -28,6 +28,7 @@ model User {
   createdSharedLinks SharedLink[]
   permissions        Permission[]
   accounts           Account[]
+  loginHistory       LoginHistory[]
   
   @@index([email])
 }
@@ -220,4 +221,19 @@ model VerificationToken {
   expires    DateTime
   
   @@unique([identifier, token])
+}
+
+model LoginHistory {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  ip        String?
+  userAgent String?
+  device    String?
+  location  String?
+  status    String   // "success" or "failed"
+  createdAt DateTime @default(now())
+  
+  @@index([userId, createdAt])
+  @@index([createdAt])
 }

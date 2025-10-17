@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
     const session = await auth()
 
     if (!session || !session.user) {
-      return errorResponse("Unauthorized", 401)
+      return errorResponse("غير مصرح", 401)
     }
 
     const body = await request.json()
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (!user || !user.password) {
-      return errorResponse("User not found", 404)
+      return errorResponse("المستخدم غير موجود", 404)
     }
 
     // Verify current password
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     )
 
     if (!isValidPassword) {
-      return errorResponse("Current password is incorrect", 400)
+      return errorResponse("كلمة المرور الحالية غير صحيحة", 400)
     }
 
     // Hash new password
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     })
 
     return successResponse({
-      message: "Password changed successfully",
+      message: "تم تغيير كلمة المرور بنجاح",
     })
   } catch (error) {
     if (error instanceof ZodError) {
@@ -57,6 +57,6 @@ export async function POST(request: NextRequest) {
     }
 
     console.error("Change password error:", error)
-    return errorResponse("Internal server error", 500)
+    return errorResponse("خطأ داخلي في الخادم", 500)
   }
 }

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2, Eye, EyeOff } from "lucide-react"
+import { toast } from "sonner"
 
 export default function PasswordForm() {
   const [currentPassword, setCurrentPassword] = useState("")
@@ -42,13 +43,22 @@ export default function PasswordForm() {
         if (data.details) {
           const errorMessages = Object.values(data.details).flat().join(", ")
           setError(errorMessages)
+          toast.error("فشل تغيير كلمة المرور", {
+            description: errorMessages
+          })
         } else {
           setError(data.error || "حدث خطأ أثناء تغيير كلمة المرور")
+          toast.error("فشل تغيير كلمة المرور", {
+            description: data.error || "حدث خطأ أثناء تغيير كلمة المرور"
+          })
         }
         return
       }
 
       setMessage("تم تغيير كلمة المرور بنجاح")
+      toast.success("تم تغيير كلمة المرور", {
+        description: "تم تحديث كلمة المرور بنجاح"
+      })
       
       // Reset form
       setCurrentPassword("")
@@ -56,6 +66,9 @@ export default function PasswordForm() {
       setConfirmPassword("")
     } catch (err) {
       setError("حدث خطأ أثناء تغيير كلمة المرور")
+      toast.error("حدث خطأ", {
+        description: "حدث خطأ أثناء تغيير كلمة المرور"
+      })
     } finally {
       setIsLoading(false)
     }
