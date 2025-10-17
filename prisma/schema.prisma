@@ -1,0 +1,223 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String        @id @default(uuid())
+  email              String        @unique
+  password           String?
+  name               String?
+  emailVerified      DateTime?
+  image              String?
+  locale             String        @default("en")
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  roles              UserRole[]
+  files              File[]        @relation("ownerFiles")
+  folders            Folder[]
+  notifications      Notification[]
+  auditLogs          AuditLog[]    @relation("actorLogs")
+  sessions           Session[]
+  createdVersions    FileVersion[]
+  createdPermissions Permission[]  @relation("createdByPermissions")
+  createdSharedLinks SharedLink[]
+  permissions        Permission[]
+  accounts           Account[]
+  
+  @@index([email])
+}
+
+model Role {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  users       UserRole[]
+  permissions Permission[]
+}
+
+model UserRole {
+  id     Int    @id @default(autoincrement())
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  roleId Int
+  @@unique([userId, roleId])
+}
+
+model Folder {
+  id         String       @id @default(uuid())
+  name       String
+  owner      User?        @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  ownerId    String?
+  parentId   String?
+  parent     Folder?      @relation("folder_children", fields: [parentId], references: [id], onDelete: Cascade)
+  children   Folder[]     @relation("folder_children")
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  files      File[]
+  permissions Permission[]
+  path       String?
+  @@index([ownerId])
+  @@index([parentId])
+}
+
+model File {
+  id           String       @id @default(uuid())
+  name         String
+  slug         String?      @unique
+  owner        User         @relation("ownerFiles", fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId      String
+  folder       Folder?      @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  folderId     String?
+  size         Int
+  mimeType     String
+  storageKey   String
+  storageId    String?
+  metadata     Json?
+  versions     FileVersion[]
+  permissions  Permission[]
+  sharedLinks  SharedLink[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  isArchived   Boolean      @default(false)
+  deletedAt    DateTime?
+  searchVector String?      @db.Text
+  @@index([ownerId])
+  @@index([folderId])
+  @@index([createdAt])
+}
+
+model FileVersion {
+  id          String   @id @default(uuid())
+  file        File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  fileId      String
+  version     Int
+  storageKey  String
+  size        Int
+  mimeType    String
+  createdAt   DateTime @default(now())
+  createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdById String?
+  @@unique([fileId, version])
+  @@index([fileId])
+}
+
+model Permission {
+  id          Int      @id @default(autoincrement())
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String?
+  role        Role?    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  roleId      Int?
+  file        File?    @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  fileId      String?
+  folder      Folder?  @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  folderId    String?
+  canRead     Boolean  @default(true)
+  canWrite    Boolean  @default(false)
+  canShare    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  createdBy   User?    @relation("createdByPermissions", fields: [createdById], references: [id], onDelete: SetNull)
+  createdById String?
+  @@index([userId])
+  @@index([roleId])
+  @@index([fileId])
+  @@index([folderId])
+}
+
+model SharedLink {
+  id           String   @id @default(uuid())
+  file         File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  fileId       String
+  token        String   @unique
+  createdBy    User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdById  String?
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime?
+  maxDownloads Int?
+  downloads    Int      @default(0)
+  isActive     Boolean  @default(true)
+  permission   String   @default("read")
+  passwordHash String?
+  notes        String?
+  @@index([fileId])
+  @@index([expiresAt])
+  @@index([token])
+}
+
+model Notification {
+  id          String    @id @default(uuid())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  type        String
+  data        Json
+  isRead      Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  delivered   Boolean   @default(false)
+  deliveredAt DateTime?
+  @@index([userId, isRead])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actor      User?    @relation("actorLogs", fields: [actorId], references: [id], onDelete: SetNull)
+  actorId    String?
+  action     String
+  targetType String?
+  targetId   String?
+  payload    Json?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  @@index([actorId, createdAt])
+  @@index([createdAt])
+}
+
+model StorageProvider {
+  id        String   @id @default(uuid())
+  name      String
+  type      String
+  config    Json
+  createdAt DateTime @default(now())
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  
+  @@unique([identifier, token])
+}

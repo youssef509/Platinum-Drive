@@ -1,0 +1,179 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String        @id @default(uuid())
+  email          String        @unique
+  password       String
+  name           String?
+  locale         String        @default("en")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  roles          UserRole[]
+  files          File[]        @relation("ownerFiles")
+  notifications  Notification[]
+  auditLogs      AuditLog[]    @relation("actorLogs")
+  sessions       Session[]
+}
+
+model Role {
+  id    Int     @id @default(autoincrement())
+  name  String  @unique
+  users UserRole[]
+}
+
+model UserRole {
+  id     Int    @id @default(autoincrement())
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+  role   Role   @relation(fields: [roleId], references: [id])
+  roleId Int
+  @@unique([userId, roleId])
+}
+
+model Folder {
+  id         String    @id @default(uuid())
+  name       String
+  owner      User?     @relation(fields: [ownerId], references: [id])
+  ownerId    String?
+  parentId   String?   @db.Uuid
+  parent     Folder?   @relation("folder_children", fields: [parentId], references: [id])
+  children   Folder[]  @relation("folder_children")
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  files      File[]
+  permissions Permission[]
+  path       String?   // materialized path if you want quick tree queries, e.g. /root/2025/...
+  @@index([ownerId])
+}
+
+model File {
+  id           String       @id @default(uuid())
+  name         String
+  slug         String?      @unique // optional public-friendly name
+  owner        User         @relation("ownerFiles", fields: [ownerId], references: [id])
+  ownerId      String
+  folder       Folder?      @relation(fields: [folderId], references: [id])
+  folderId     String?
+  size         Int
+  mimeType     String
+  storageKey   String       // path or S3 key
+  storageId    String?      // FK to storage provider if needed
+  metadata     Json?        // JSONB metadata
+  versions     FileVersion[]
+  permissions  Permission[]
+  sharedLinks  SharedLink[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  isArchived   Boolean      @default(false)
+  deletedAt    DateTime?
+  searchVector String?      @db.Text // optionally managed by triggers for full-text
+  @@index([ownerId])
+  @@index([folderId])
+  @@index([createdAt])
+}
+
+model FileVersion {
+  id        String   @id @default(uuid())
+  file      File     @relation(fields: [fileId], references: [id])
+  fileId    String
+  version   Int
+  storageKey String
+  size      Int
+  mimeType  String
+  createdAt DateTime @default(now())
+  createdBy User?    @relation(fields: [createdById], references: [id])
+  createdById String?
+  @@unique([fileId, version])
+}
+
+model Permission {
+  id         Int      @id @default(autoincrement())
+  // permission can be assigned to a user or a role (one of them filled)
+  user       User?    @relation(fields: [userId], references: [id])
+  userId     String?
+  role       Role?    @relation(fields: [roleId], references: [id])
+  roleId     Int?
+  file       File?    @relation(fields: [fileId], references: [id])
+  fileId     String?
+  folder     Folder?  @relation(fields: [folderId], references: [id])
+  folderId   String?
+  canRead    Boolean  @default(true)
+  canWrite   Boolean  @default(false)
+  canShare   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  createdBy  User?    @relation(fields: [createdById], references: [id])
+  createdById String?
+  @@index([userId])
+  @@index([roleId])
+}
+
+model SharedLink {
+  id           String   @id @default(uuid())
+  file         File     @relation(fields: [fileId], references: [id])
+  fileId       String
+  token        String   @unique // random token used in URL
+  createdBy    User?    @relation(fields: [createdById], references: [id])
+  createdById  String?
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime?
+  maxDownloads Int?     // optional
+  downloads    Int      @default(0)
+  isActive     Boolean  @default(true)
+  permission   String   @default("read") // read / write if you allow uploads to link
+  passwordHash String?  // optional password protection
+  notes        String?
+  @@index([fileId])
+  @@index([expiresAt])
+}
+
+model Notification {
+  id         String   @id @default(uuid())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  type       String   // e.g., "file_uploaded", "file_downloaded", "link_expired"
+  data       Json     // payload (file id, name, link token, etc.)
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  delivered  Boolean  @default(false) // whether push/email delivered
+  deliveredAt DateTime?
+  @@index([userId, isRead])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actor      User?    @relation(fields: [actorId], references: [id])
+  actorId    String?
+  action     String   // e.g., "upload", "download", "share_create", "permission_change"
+  targetType String?  // "file", "folder", "link", etc
+  targetId   String?
+  payload    Json?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  @@index([actorId, createdAt])
+}
+
+model StorageProvider {
+  id        String   @id @default(uuid())
+  name      String
+  type      String   // "s3", "local", "gcs"
+  config    Json     // credentials / bucket / region (encrypted at rest)
+  createdAt DateTime @default(now())
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
