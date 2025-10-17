@@ -129,6 +129,7 @@ export default function ProfileForm({ user }: ProfileFormProps) {
         },
         body: JSON.stringify({
           name: name || undefined,
+          email: email !== user.email ? email : undefined,
         }),
       })
 
@@ -145,7 +146,14 @@ export default function ProfileForm({ user }: ProfileFormProps) {
       }
 
       setMessage("تم تحديث الملف الشخصي بنجاح")
-      router.refresh()
+      toast.success("تم تحديث الملف الشخصي", {
+        description: "تم حفظ التغييرات بنجاح"
+      })
+      
+      // Refresh to update all components with new data
+      setTimeout(() => {
+        router.refresh()
+      }, 1000)
     } catch (err) {
       setError("حدث خطأ أثناء تحديث الملف الشخصي")
     } finally {
@@ -247,11 +255,13 @@ export default function ProfileForm({ user }: ProfileFormProps) {
             id="email"
             type="email"
             value={email}
-            disabled
-            className="bg-muted text-right"
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={isLoading}
+            placeholder="أدخل بريدك الإلكتروني"
+            className="text-right"
           />
           <p className="text-xs text-muted-foreground text-right">
-            لا يمكن تغيير البريد الإلكتروني حالياً
+            تأكد من استخدام بريد إلكتروني صحيح وغير مستخدم من قبل
           </p>
         </div>
 

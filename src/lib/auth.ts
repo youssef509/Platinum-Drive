@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import prisma from "@/lib/prisma"
 import bcrypt from "bcryptjs"
+import { recordLoginAttempt } from "@/lib/login-history-utils"
 
 export const authConfig: NextAuthConfig = {
   adapter: PrismaAdapter(prisma),
@@ -13,7 +14,7 @@ export const authConfig: NextAuthConfig = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" }
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         if (!credentials?.email || !credentials?.password) {
           throw new Error("Email and password are required")
         }
@@ -30,6 +31,17 @@ export const authConfig: NextAuthConfig = {
         })
 
         if (!user || !user.password) {
+          // Record failed login attempt if user exists
+          if (user) {
+            await recordLoginAttempt({
+              userId: user.id,
+              status: "failed",
+              ip: request?.headers?.get?.('x-forwarded-for')?.split(',')[0] || 
+                  request?.headers?.get?.('x-real-ip') || 
+                  'Unknown IP',
+              userAgent: request?.headers?.get?.('user-agent') || 'Unknown'
+            })
+          }
           throw new Error("Invalid credentials")
         }
 
@@ -39,8 +51,27 @@ export const authConfig: NextAuthConfig = {
         )
 
         if (!isValidPassword) {
+          // Record failed login attempt
+          await recordLoginAttempt({
+            userId: user.id,
+            status: "failed",
+            ip: request?.headers?.get?.('x-forwarded-for')?.split(',')[0] || 
+                request?.headers?.get?.('x-real-ip') || 
+                'Unknown IP',
+            userAgent: request?.headers?.get?.('user-agent') || 'Unknown'
+          })
           throw new Error("Invalid credentials")
         }
+
+        // Record successful login attempt
+        await recordLoginAttempt({
+          userId: user.id,
+          status: "success",
+          ip: request?.headers?.get?.('x-forwarded-for')?.split(',')[0] || 
+              request?.headers?.get?.('x-real-ip') || 
+              'Unknown IP',
+          userAgent: request?.headers?.get?.('user-agent') || 'Unknown'
+        })
 
         return {
           id: user.id,

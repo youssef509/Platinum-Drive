@@ -30,6 +30,7 @@ export const loginSchema = z.object({
 // Update user profile schema
 export const updateProfileSchema = z.object({
   name: z.string().min(2, "الاسم يجب أن يكون حرفين على الأقل").optional(),
+  email: emailSchema.optional(),
   locale: z.enum(["en", "ar"]).optional(),
 })
 
