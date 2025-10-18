@@ -73,6 +73,12 @@ export const authConfig: NextAuthConfig = {
           userAgent: request?.headers?.get?.('user-agent') || 'Unknown'
         })
 
+        // Update lastLoginAt timestamp
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { lastLoginAt: new Date() }
+        })
+
         return {
           id: user.id,
           email: user.email,

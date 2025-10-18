@@ -15,8 +15,18 @@ model User {
   emailVerified      DateTime?
   image              String?
   locale             String        @default("en")
+  lastLoginAt        DateTime?
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
+  isActive           Boolean       @default(true)
+  accountStatus      String        @default("active") // active, suspended, disabled
+  suspendedAt        DateTime?
+  suspendedReason    String?
+  suspendedBy        String?
+  storageQuotaBytes  BigInt        @default(10737418240) // 10GB default
+  usedStorageBytes   BigInt        @default(0)
+  
+  // Relations
   roles              UserRole[]
   files              File[]        @relation("ownerFiles")
   folders            Folder[]
@@ -29,8 +39,13 @@ model User {
   permissions        Permission[]
   accounts           Account[]
   loginHistory       LoginHistory[]
+  settings           UserSettings?
+  storageQuota       StorageQuota?
+  quotaHistory       QuotaHistory[]
   
   @@index([email])
+  @@index([isActive])
+  @@index([accountStatus])
 }
 
 model Role {
@@ -236,4 +251,159 @@ model LoginHistory {
   
   @@index([userId, createdAt])
   @@index([createdAt])
+}
+
+
+model UserSettings {
+  id                    String   @id @default(uuid())
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId                String   @unique
+  
+  // UI Preferences
+  theme                 String   @default("system") // light, dark, system
+  language              String   @default("ar") // ar, en
+  dateFormat            String   @default("DD/MM/YYYY")
+  timeFormat            String   @default("24") // 12, 24
+  timezone              String   @default("Africa/Cairo")
+  
+  // Notification Preferences
+  emailNotifications    Boolean  @default(true)
+  pushNotifications     Boolean  @default(true)
+  desktopNotifications  Boolean  @default(false)
+  
+  // Email Notification Types
+  notifyOnUpload        Boolean  @default(true)
+  notifyOnShare         Boolean  @default(true)
+  notifyOnComment       Boolean  @default(true)
+  notifyOnMention       Boolean  @default(true)
+  notifyOnStorageLimit  Boolean  @default(true)
+  notifyOnLoginAttempt  Boolean  @default(true)
+  notifyOnFileExpiry    Boolean  @default(true)
+  
+  // Upload Preferences
+  defaultFolderId       String?
+  autoOrganize          Boolean  @default(false)
+  compressImages        Boolean  @default(false)
+  generateThumbnails    Boolean  @default(true)
+  
+  // Privacy Settings
+  profileVisibility     String   @default("private") // public, private, contacts
+  showOnlineStatus      Boolean  @default(true)
+  allowIndexing         Boolean  @default(false)
+  
+  // File Management
+  defaultSortBy         String   @default("name") // name, date, size, type
+  defaultViewMode       String   @default("grid") // grid, list
+  showHiddenFiles       Boolean  @default(false)
+  autoDeleteTrashed     Int      @default(30) // Days
+  
+  // Security
+  sessionTimeout        Int      @default(30) // Minutes
+  requireReauth         Boolean  @default(false)
+  loginAlerts           Boolean  @default(true)
+  
+  // Sharing Defaults
+  defaultSharePermission String  @default("view") // view, edit, comment
+  defaultLinkExpiry     Int?     // Days
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@index([userId])
+}
+
+model StorageQuota {
+  id                String   @id @default(uuid())
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId            String   @unique
+  
+  // Quota Management
+  quotaBytes        BigInt
+  usedBytes         BigInt   @default(0)
+  filesCount        Int      @default(0)
+  foldersCount      Int      @default(0)
+  
+  // Limits
+  maxFileSize       BigInt?
+  maxFiles          Int?
+  allowedFileTypes  String[]
+  
+  // Bandwidth (optional)
+  monthlyBandwidthBytes BigInt?
+  usedBandwidthBytes    BigInt  @default(0)
+  bandwidthResetDate    DateTime?
+  
+  // History
+  lastCalculated    DateTime @default(now())
+  assignedBy        String?
+  assignedAt        DateTime @default(now())
+  notes             String?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([userId])
+}
+
+model QuotaHistory {
+  id              String   @id @default(uuid())
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String
+  previousQuota   BigInt
+  newQuota        BigInt
+  changedBy       String
+  reason          String?
+  createdAt       DateTime @default(now())
+  
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}
+
+
+model SystemSettings {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       Json
+  category    String   // "security", "storage", "upload", "email", "general"
+  description String?
+  isPublic    Boolean  @default(false)
+  updatedBy   String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  
+  @@index([category])
+  @@index([key])
+}
+
+model FileTypePolicy {
+  id              Int      @id @default(autoincrement())
+  mimeType        String   @unique
+  extension       String?
+  category        String?  // "image", "video", "document", "audio", "archive"
+  
+  // Policy
+  isAllowed       Boolean  @default(true)
+  maxFileSize     BigInt?
+  requiresApproval Boolean @default(false)
+  
+  // Virus Scanning
+  scanOnUpload    Boolean  @default(true)
+  
+  // Processing
+  generatePreview Boolean  @default(false)
+  convertFormat   String?
+  
+  // Metadata
+  displayName     String?
+  icon            String?
+  color           String?
+  
+  // Audit
+  createdBy       String?
+  updatedBy       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([category])
+  @@index([isAllowed])
 }
