@@ -9,6 +9,7 @@ import { ThemeSwitcher } from "@/components/theme-switcher"
 import { NotificationMenu } from "@/components/notification-menu"
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
+import prisma from "@/lib/prisma"
 
 interface MainLayoutProps {
   children: React.ReactNode
@@ -20,6 +21,18 @@ export default async function MainLayout({ children }: MainLayoutProps) {
   if (!session || !session.user) {
     redirect("/sign-in")
   }
+
+  // Get user roles
+  const userWithRoles = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    include: {
+      roles: {
+        include: { role: true }
+      }
+    }
+  })
+
+  const userRoles = userWithRoles?.roles.map(ur => ur.role.name) || []
 
   return (
     <SidebarProvider>
@@ -40,7 +53,12 @@ export default async function MainLayout({ children }: MainLayoutProps) {
           {children}
         </div>
       </SidebarInset>
-      <AppSidebar side="right" />
+      <AppSidebar 
+        side="right" 
+        userRoles={userRoles}
+        userName={session.user.name || undefined}
+        userEmail={session.user.email || undefined}
+      />
     </SidebarProvider>
   )
 }

@@ -1,5 +1,4 @@
 import prisma from "@/lib/prisma"
-import { headers } from "next/headers"
 
 interface LoginAttemptData {
   userId: string
@@ -52,9 +51,7 @@ export async function recordLoginAttempt(data: LoginAttemptData): Promise<void> 
 /**
  * Get IP and User Agent from request headers
  */
-export async function getClientInfo() {
-  const headersList = await headers()
-  
+export function getClientInfo(headersList: Headers) {
   const ip = 
     headersList.get('x-forwarded-for')?.split(',')[0] ||
     headersList.get('x-real-ip') ||
