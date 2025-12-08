@@ -387,6 +387,9 @@ export default function FileTypesManagement() {
                         <SelectItem value="application/x-rar-compressed">application/x-rar-compressed</SelectItem>
                         <SelectItem value="application/x-7z-compressed">application/x-7z-compressed</SelectItem>
                         <SelectItem value="application/gzip">application/gzip</SelectItem>
+                        <SelectItem value="application/x-tar">application/x-tar</SelectItem>
+                        <SelectItem value=" application/x-compressed">application/x-compressed</SelectItem>
+
                       </SelectGroup>
                       <SelectGroup>
                         <SelectLabel>أخرى</SelectLabel>
