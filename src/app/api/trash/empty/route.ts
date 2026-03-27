@@ -32,7 +32,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Calculate total size to free up
-    const totalSize = trashedFiles.reduce((sum, file) => sum + Number(file.size), 0)
+    const totalSize = trashedFiles.reduce((sum: bigint, file: { size: number }) => sum + BigInt(file.size), BigInt(0))
 
     // Delete files from disk
     let deletedFromDisk = 0

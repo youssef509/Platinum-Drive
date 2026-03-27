@@ -18,7 +18,7 @@ export async function GET() {
         connected: true,
         users: userCount,
         roles: roleCount,
-        availableRoles: roles.map(r => r.name),
+        availableRoles: roles.map((r: { name: string }) => r.name),
       },
       endpoints: {
         register: "/api/auth/register",

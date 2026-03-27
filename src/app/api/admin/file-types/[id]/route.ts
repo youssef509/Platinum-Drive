@@ -16,7 +16,7 @@ async function isAdmin(userId: string): Promise<boolean> {
     },
   })
 
-  return user?.roles.some((ur) => ur.role.name === "admin") || false
+  return user?.roles.some((ur: { role: { name: string } }) => ur.role.name === "admin") || false
 }
 
 export async function PATCH(

@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Extract role names
-    const roleNames = user.roles.map(ur => ur.role.name)
+    const roleNames = user.roles.map((ur: { role: { name: string } }) => ur.role.name)
     const primaryRole = roleNames.length > 0 ? roleNames[0] : 'USER'
 
     return NextResponse.json({

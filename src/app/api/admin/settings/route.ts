@@ -17,7 +17,7 @@ async function isAdmin(userId: string): Promise<boolean> {
     },
   })
 
-  return user?.roles.some((ur) => ur.role.name === "admin") || false
+  return user?.roles.some((ur: { role: { name: string } }) => ur.role.name === "admin") || false
 }
 
 export async function GET(request: NextRequest) {
@@ -42,8 +42,8 @@ export async function GET(request: NextRequest) {
     })
 
     // Convert array to object with key-value pairs
-    const settingsObject = settings.reduce((acc: any, setting) => {
-      acc[setting.key] = setting.value
+    const settingsObject = settings.reduce((acc: any, setting: { key: string; value: any }) => {
+      acc[setting.key] = setting.value !== null && setting.value !== undefined ? String(setting.value) : ""
       return acc
     }, {})
 

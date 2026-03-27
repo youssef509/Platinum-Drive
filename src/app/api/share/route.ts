@@ -147,7 +147,7 @@ export async function GET(request: Request) {
 
     // Add share URLs
     const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
-    const linksWithUrls = sharedLinks.map(link => ({
+    const linksWithUrls = sharedLinks.map((link: { token: string; passwordHash: string | null }) => ({
       ...link,
       shareUrl: `${baseUrl}/share/${link.token}`,
       hasPassword: !!link.passwordHash,

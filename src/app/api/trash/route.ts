@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Calculate days until permanent deletion (30 days from deletion)
-    const filesWithDaysRemaining = files.map((file) => {
+    const filesWithDaysRemaining = files.map((file: { deletedAt: Date | null }) => {
       const deletedDate = file.deletedAt ? new Date(file.deletedAt) : new Date()
       const permanentDeleteDate = new Date(deletedDate)
       permanentDeleteDate.setDate(permanentDeleteDate.getDate() + 30)

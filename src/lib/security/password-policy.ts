@@ -165,7 +165,7 @@ export async function savePasswordToHistory(
     await prisma.passwordHistory.deleteMany({
       where: {
         id: {
-          in: toDelete.map(h => h.id)
+          in: toDelete.map((h: { id: string }) => h.id)
         }
       }
     })

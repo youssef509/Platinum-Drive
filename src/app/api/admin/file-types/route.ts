@@ -16,7 +16,7 @@ async function isAdmin(userId: string): Promise<boolean> {
     },
   })
 
-  return user?.roles.some((ur) => ur.role.name === "admin") || false
+  return user?.roles.some((ur: { role: { name: string } }) => ur.role.name === "admin") || false
 }
 
 export async function GET(request: NextRequest) {
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Convert BigInt to string for JSON serialization
-    const serializedPolicies = policies.map(policy => ({
+    const serializedPolicies = policies.map((policy: { maxFileSize: bigint | null }) => ({
       ...policy,
       maxFileSize: policy.maxFileSize ? policy.maxFileSize.toString() : null,
     }))

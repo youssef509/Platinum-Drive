@@ -40,7 +40,7 @@ export async function GET() {
     return NextResponse.json({
       user: {
         ...user,
-        roles: user.roles.map((ur) => ur.role.name),
+        roles: user.roles.map((ur: { role: { name: string } }) => ur.role.name),
       },
     })
   } catch (error) {

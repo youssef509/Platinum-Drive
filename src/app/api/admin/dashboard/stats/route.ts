@@ -13,7 +13,7 @@ async function checkAdminAccess(userId: string) {
     }
   })
 
-  return userWithRoles?.roles.some(ur => ur.role.name === 'admin') ?? false
+  return userWithRoles?.roles.some((ur: { role: { name: string } }) => ur.role.name === 'admin') ?? false
 }
 
 export async function GET(request: NextRequest) {
@@ -116,7 +116,7 @@ export async function GET(request: NextRequest) {
         storageUtilization: systemStats._sum.storageQuotaBytes ? 
           Math.round((Number(systemStats._sum.usedStorageBytes || BigInt(0)) / Number(systemStats._sum.storageQuotaBytes)) * 100) : 0
       },
-      topUsers: topUsers.map(user => ({
+      topUsers: topUsers.map((user: { usedStorageBytes: bigint } & Record<string, any>) => ({
         ...user,
         usedStorageBytes: user.usedStorageBytes.toString() // Convert BigInt to string for JSON
       }))

@@ -17,7 +17,7 @@ async function isAdmin(userId: string): Promise<boolean> {
     },
   })
 
-  return user?.roles.some((ur) => ur.role.name === "admin") || false
+  return user?.roles.some((ur: { role: { name: string } }) => ur.role.name === "admin") || false
 }
 
 export async function GET(request: NextRequest) {
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 
     // Build where clause
     const where: any = {}
-    
+
     if (search) {
       where.OR = [
         { email: { contains: search, mode: "insensitive" } },
@@ -85,16 +85,32 @@ export async function GET(request: NextRequest) {
     ])
 
     // Serialize BigInt fields and transform data structure
-    const serializedUsers = users.map(user => {
-      const quotaBytes = user.storageQuotaBytes ? Number(user.storageQuotaBytes) : 0
-      const usedBytes = user.usedStorageBytes ? Number(user.usedStorageBytes) : 0
-      const utilization = quotaBytes > 0 ? Math.round((usedBytes / quotaBytes) * 100) : 0
+    const serializedUsers = users.map((user: {
+        storageQuotaBytes: bigint | null;
+        usedStorageBytes: bigint | null;
+        _count: { files: number; folders: number };
+        id: string;
+        email: string;
+        name: string | null;
+        emailVerified: Date | null;
+        image: string | null;
+        accountStatus: string;
+        isActive: boolean;
+        suspendedAt: Date | null;
+        suspendedReason: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+        lastLoginAt: Date | null;
+        roles: any[] }) => {
+      const quotaBytes = user.storageQuotaBytes ? Number(user.storageQuotaBytes) : 0;
+      const usedBytes = user.usedStorageBytes ? Number(user.usedStorageBytes) : 0;
+      const utilization = quotaBytes > 0 ? Math.round((usedBytes / quotaBytes) * 100) : 0;
 
       return {
         id: user.id,
         email: user.email,
         name: user.name || '',
-        emailVerified: user.emailVerified,
+        emailVerified: !!user.emailVerified,
         avatarUrl: user.image,
         status: user.accountStatus,
         isActive: user.isActive,
@@ -114,7 +130,7 @@ export async function GET(request: NextRequest) {
           foldersCount: user._count.folders
         }
       }
-    })
+    });
 
     return successResponse({
       users: serializedUsers,
