@@ -95,7 +95,7 @@ export async function getAdminUserIds(): Promise<string[]> {
       userId: true,
     },
   })
-  return adminRoles.map(role => role.userId)
+  return adminRoles.map((role: { userId: string }) => role.userId)
 }
 
 // File operation notifications

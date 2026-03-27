@@ -33,7 +33,7 @@ export default async function MainLayout({ children }: MainLayoutProps) {
     }
   })
 
-  const userRoles = userWithRoles?.roles.map(ur => ur.role.name) || []
+  const userRoles = userWithRoles?.roles.map((ur: { role: { name: string } }) => ur.role.name) || []
 
   return (
     <SidebarProvider>

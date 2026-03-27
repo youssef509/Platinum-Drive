@@ -14,7 +14,7 @@ async function checkAdminAccess(userId: string) {
     }
   })
 
-  return userWithRoles?.roles.some(ur => ur.role.name === 'admin') ?? false
+  return userWithRoles?.roles.some((ur: { role: { name: string } }) => ur.role.name === 'admin') ?? false
 }
 
 // Get dashboard statistics
@@ -121,7 +121,7 @@ export default async function AdminPage() {
   }
 
   // Check admin access
-  const isAdmin = userWithRoles.roles.some(ur => ur.role.name === 'admin')
+  const isAdmin = userWithRoles.roles.some((ur: { role: { name: string } }) => ur.role.name === 'admin')
   if (!isAdmin) {
     redirect('/profile') // Redirect non-admin users
   }

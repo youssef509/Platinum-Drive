@@ -51,7 +51,14 @@ export async function GET(request: Request) {
     ])
 
     // Format the response
-    const formattedLinks = sharedLinks.map((link) => ({
+    const formattedLinks = sharedLinks.map((link: { 
+      id: string; 
+      token: string;
+       file: { id: string;
+         name: string; 
+         size: number; 
+         mimeType: string; 
+         createdAt: Date }; createdAt: Date; expiresAt: Date | null; permission: string; maxDownloads: number | null; downloads: number; views: number; passwordHash: string | null; notes: string | null }) => ({
       id: link.id,
       token: link.token,
       shareUrl: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/share/${link.token}`,

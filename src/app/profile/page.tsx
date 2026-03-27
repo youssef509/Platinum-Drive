@@ -43,7 +43,7 @@ export default async function ProfilePage() {
     })
 
     if (user) {
-      const roleNames = user.roles.map(ur => ur.role.name)
+      const roleNames = user.roles.map((ur: { role: { name: string } }) => ur.role.name)
       userData = {
         id: user.id,
         name: user.name,

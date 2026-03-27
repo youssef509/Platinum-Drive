@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
         include: { role: true }
       })
       
-      isAdmin = userRoles.some(ur => ur.role.name === 'admin')
+      isAdmin = userRoles.some((ur: { role: { name: string } }) => ur.role.name === 'admin')
     }
 
     return NextResponse.json({
