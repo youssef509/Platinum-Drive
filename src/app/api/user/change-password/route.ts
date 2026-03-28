@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server"
-import { auth } from "@/lib/auth/auth"
+import { auth, getDbUser } from "@/lib/auth/auth"
 import prisma from "@/lib/db/prisma"
 import { hashPassword, comparePassword } from "@/lib/auth/auth-utils"
 import { changePasswordSchema } from "@/lib/validations/schemas"
@@ -10,9 +10,12 @@ import { requiresReauth } from "@/lib/security/security-utils"
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth()
-
-    if (!session || !session.user) {
+    const { userId } = await auth()
+    if (!userId) {
+      return errorResponse("غير مصرح", 401)
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return errorResponse("غير مصرح", 401)
     }
 
@@ -23,7 +26,7 @@ export async function POST(request: NextRequest) {
 
     // Get current user with password and settings
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: dbUser.id },
       select: { 
         id: true, 
         password: true,
@@ -60,12 +63,12 @@ export async function POST(request: NextRequest) {
 
     // Update password
     await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: dbUser.id },
       data: { password: hashedPassword },
     })
 
     // Send notification
-    await notifyPasswordChanged(session.user.id)
+    await notifyPasswordChanged(dbUser.id)
 
     return successResponse({
       message: "تم تغيير كلمة المرور بنجاح",

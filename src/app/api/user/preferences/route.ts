@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth/auth'
+import { auth, getDbUser } from '@/lib/auth/auth'
 import prisma from '@/lib/db/prisma'
 
 /**
@@ -8,20 +8,23 @@ import prisma from '@/lib/db/prisma'
  */
 export async function GET() {
   try {
-    const session = await auth()
-    
-    if (!session?.user?.id) {
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     // Get user settings (or create defaults if they don't exist)
     let userSettings = await prisma.userSettings.findUnique({
-      where: { userId: session.user.id }
+      where: { userId: dbUser.id }
     })
 
     if (!userSettings) {
       userSettings = await prisma.userSettings.create({
-        data: { userId: session.user.id }
+        data: { userId: dbUser.id }
       })
     }
 

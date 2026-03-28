@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth/auth'
+import { auth, getDbUser } from '@/lib/auth/auth'
 import prisma from '@/lib/db/prisma'
 import { join } from 'path'
 import { readFile } from 'fs/promises'
@@ -13,9 +13,13 @@ export async function GET(
     const params = await props.params
     const fileId = params.id
 
-    // Get session
-    const session = await auth()
-    if (!session?.user?.id) {
+    // Get auth
+    const { userId } = await auth()
+    if (!userId) {
+      return new NextResponse('Unauthorized', { status: 401 })
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return new NextResponse('Unauthorized', { status: 401 })
     }
 
@@ -42,7 +46,7 @@ export async function GET(
 
     // Check permissions - user must own file
     // TODO: Add shared file access check
-    if (file.ownerId !== session.user.id) {
+    if (file.ownerId !== dbUser.id) {
       return new NextResponse('Forbidden', { status: 403 })
     }
 

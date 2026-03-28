@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth/auth'
+import { auth, getDbUser } from '@/lib/auth/auth'
 import prisma from '@/lib/db/prisma'
 
 // GET - Get folder details
@@ -8,9 +8,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth()
-    
-    if (!session?.user?.id) {
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'غير مصرح' },
+        { status: 401 }
+      )
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return NextResponse.json(
         { error: 'غير مصرح' },
         { status: 401 }
@@ -48,7 +54,7 @@ export async function GET(
       )
     }
 
-    if (folder.ownerId !== session.user.id) {
+    if (folder.ownerId !== dbUser.id) {
       return NextResponse.json(
         { error: 'غير مصرح بالوصول إلى هذا المجلد' },
         { status: 403 }
@@ -71,9 +77,15 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth()
-    
-    if (!session?.user?.id) {
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'غير مصرح' },
+        { status: 401 }
+      )
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return NextResponse.json(
         { error: 'غير مصرح' },
         { status: 401 }
@@ -104,7 +116,7 @@ export async function PUT(
       )
     }
 
-    if (folder.ownerId !== session.user.id) {
+    if (folder.ownerId !== dbUser.id) {
       return NextResponse.json(
         { error: 'غير مصرح بتعديل هذا المجلد' },
         { status: 403 }
@@ -139,9 +151,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth()
-    
-    if (!session?.user?.id) {
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'غير مصرح' },
+        { status: 401 }
+      )
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return NextResponse.json(
         { error: 'غير مصرح' },
         { status: 401 }
@@ -174,7 +192,7 @@ export async function DELETE(
       )
     }
 
-    if (folder.ownerId !== session.user.id) {
+    if (folder.ownerId !== dbUser.id) {
       return NextResponse.json(
         { error: 'غير مصرح بحذف هذا المجلد' },
         { status: 403 }

@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth/auth'
+import { auth, getDbUser } from '@/lib/auth/auth'
 import prisma from '@/lib/db/prisma'
 
 export async function GET(request: Request) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json({ error: 'غير مصرح' }, { status: 401 })
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return NextResponse.json({ error: 'غير مصرح' }, { status: 401 })
     }
 
@@ -23,7 +27,7 @@ export async function GET(request: Request) {
 
     // Build search filters
     const searchFilters: any = {
-      ownerId: session.user.id,
+      ownerId: dbUser.id,
       deletedAt: null, // Exclude deleted files
     }
 
@@ -111,7 +115,7 @@ export async function GET(request: Request) {
 
     // Build folder search filters (only name search, no mime type)
     const folderSearchFilters: any = {
-      ownerId: session.user.id,
+      ownerId: dbUser.id,
     }
 
     if (query.trim()) {

@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth/auth'
+import { auth, getDbUser } from '@/lib/auth/auth'
 import prisma from '@/lib/db/prisma'
 
 // GET - List user's folders
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth()
-    
-    if (!session?.user?.id) {
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'غير مصرح' },
+        { status: 401 }
+      )
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return NextResponse.json(
         { error: 'غير مصرح' },
         { status: 401 }
@@ -19,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     // Build where clause
     const where: any = {
-      ownerId: session.user.id,
+      ownerId: dbUser.id,
     }
 
     // Filter by parent folder
@@ -63,9 +69,15 @@ export async function GET(request: NextRequest) {
 // POST - Create new folder
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth()
-    
-    if (!session?.user?.id) {
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'غير مصرح' },
+        { status: 401 }
+      )
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return NextResponse.json(
         { error: 'غير مصرح' },
         { status: 401 }
@@ -89,7 +101,7 @@ export async function POST(request: NextRequest) {
         select: { ownerId: true },
       })
 
-      if (!parentFolder || parentFolder.ownerId !== session.user.id) {
+      if (!parentFolder || parentFolder.ownerId !== dbUser.id) {
         return NextResponse.json(
           { error: 'المجلد الأب غير موجود أو غير مصرح به' },
           { status: 403 }
@@ -101,7 +113,7 @@ export async function POST(request: NextRequest) {
     const folder = await prisma.folder.create({
       data: {
         name: name.trim(),
-        ownerId: session.user.id,
+        ownerId: dbUser.id,
         parentId: parentId || null,
       },
       include: {

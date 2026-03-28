@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth/auth'
+import { auth, getDbUser } from '@/lib/auth/auth'
 import prisma from '@/lib/db/prisma'
 
 export async function GET(request: Request) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json({ error: 'غير مصرح' }, { status: 401 })
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return NextResponse.json({ error: 'غير مصرح' }, { status: 401 })
     }
 
@@ -19,7 +23,7 @@ export async function GET(request: Request) {
       prisma.sharedLink.findMany({
         where: {
           file: {
-            ownerId: session.user.id,
+            ownerId: dbUser.id,
           },
           isActive: true,
         },
@@ -43,7 +47,7 @@ export async function GET(request: Request) {
       prisma.sharedLink.count({
         where: {
           file: {
-            ownerId: session.user.id,
+            ownerId: dbUser.id,
           },
           isActive: true,
         },
@@ -51,17 +55,17 @@ export async function GET(request: Request) {
     ])
 
     // Format the response
-    const formattedLinks = sharedLinks.map((link: { 
-      id: string; 
+    const formattedLinks = sharedLinks.map((link: {
+      id: string;
       token: string;
        file: { id: string;
-         name: string; 
-         size: number; 
-         mimeType: string; 
+         name: string;
+         size: number;
+         mimeType: string;
          createdAt: Date }; createdAt: Date; expiresAt: Date | null; permission: string; maxDownloads: number | null; downloads: number; views: number; passwordHash: string | null; notes: string | null }) => ({
       id: link.id,
       token: link.token,
-      shareUrl: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/share/${link.token}`,
+      shareUrl: `${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000'}/share/${link.token}`,
       file: link.file,
       createdAt: link.createdAt,
       expiresAt: link.expiresAt,

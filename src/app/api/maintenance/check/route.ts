@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth/auth"
+import { auth, getDbUser } from "@/lib/auth/auth"
 import prisma from "@/lib/db/prisma"
 
 export async function GET(request: NextRequest) {
@@ -11,17 +11,20 @@ export async function GET(request: NextRequest) {
 
     const isMaintenanceMode = maintenanceSetting?.value === 'true' || maintenanceSetting?.value === true
 
-    // Check if user is admin
-    const session = await auth()
+    // Check if user is admin (optional — no 401 if not logged in)
+    const { userId } = await auth()
     let isAdmin = false
 
-    if (session?.user?.id) {
-      const userRoles = await prisma.userRole.findMany({
-        where: { userId: session.user.id },
-        include: { role: true }
-      })
-      
-      isAdmin = userRoles.some((ur: { role: { name: string } }) => ur.role.name === 'admin')
+    if (userId) {
+      const dbUser = await getDbUser()
+      if (dbUser) {
+        const userRoles = await prisma.userRole.findMany({
+          where: { userId: dbUser.id },
+          include: { role: true }
+        })
+
+        isAdmin = userRoles.some((ur: { role: { name: string } }) => ur.role.name === 'admin')
+      }
     }
 
     return NextResponse.json({

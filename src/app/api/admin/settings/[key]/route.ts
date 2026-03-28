@@ -1,23 +1,7 @@
 import { NextRequest } from "next/server"
-import { auth } from "@/lib/auth/auth"
+import { isAdminUser } from "@/lib/auth/auth"
 import prisma from "@/lib/db/prisma"
 import { errorResponse, successResponse } from "@/lib/api/api-utils"
-
-// Check if user is admin
-async function isAdmin(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: {
-      roles: {
-        include: {
-          role: true,
-        },
-      },
-    },
-  })
-
-  return user?.roles.some((ur: { role: { name: string } }) => ur.role.name === "admin") || false
-}
 
 export async function PATCH(
   request: NextRequest,
@@ -25,16 +9,13 @@ export async function PATCH(
 ) {
   try {
     const { key } = await params
-    const session = await auth()
-
-    if (!session || !session.user || !(await isAdmin(session.user.id))) {
-      return errorResponse("غير مصرح - صلاحيات المسؤول مطلوبة", 403)
-    }
+    const { isAdmin: admin, user } = await isAdminUser();
+    if (!admin || !user) return errorResponse("غير مصرح - صلاحيات المسؤول مطلوبة", 403);
 
     const body = await request.json()
     const { value, description, isPublic } = body
 
-    const updateData: any = { updatedBy: session.user.id }
+    const updateData: any = { updatedBy: user.id }
     if (value !== undefined) updateData.value = value
     if (description !== undefined) updateData.description = description
     if (isPublic !== undefined) updateData.isPublic = isPublic
@@ -47,7 +28,7 @@ export async function PATCH(
     // Log the action
     await prisma.auditLog.create({
       data: {
-        actorId: session.user.id,
+        actorId: user.id,
         action: "SYSTEM_SETTING_UPDATED",
         targetType: "SystemSettings",
         targetId: setting.id,
@@ -71,11 +52,8 @@ export async function DELETE(
 ) {
   try {
     const { key } = await params
-    const session = await auth()
-
-    if (!session || !session.user || !(await isAdmin(session.user.id))) {
-      return errorResponse("غير مصرح - صلاحيات المسؤول مطلوبة", 403)
-    }
+    const { isAdmin: admin, user } = await isAdminUser();
+    if (!admin || !user) return errorResponse("غير مصرح - صلاحيات المسؤول مطلوبة", 403);
 
     const setting = await prisma.systemSettings.findUnique({
       where: { key },
@@ -84,7 +62,7 @@ export async function DELETE(
     // Log the action
     await prisma.auditLog.create({
       data: {
-        actorId: session.user.id,
+        actorId: user.id,
         action: "SYSTEM_SETTING_DELETED",
         targetType: "SystemSettings",
         targetId: key,

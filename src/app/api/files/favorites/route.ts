@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth/auth"
+import { auth, getDbUser } from "@/lib/auth/auth"
 import prisma from "@/lib/db/prisma"
 
 // GET /api/files/favorites - Get all favorite files and folders
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth()
-    
-    if (!session?.user?.id) {
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json(
+        { error: "غير مصرح لك بالوصول" },
+        { status: 401 }
+      )
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return NextResponse.json(
         { error: "غير مصرح لك بالوصول" },
         { status: 401 }
@@ -17,7 +23,7 @@ export async function GET(request: NextRequest) {
     // Get favorite files
     const files = await prisma.file.findMany({
       where: {
-        ownerId: session.user.id,
+        ownerId: dbUser.id,
         isFavorite: true,
         deletedAt: null
       },
@@ -37,7 +43,7 @@ export async function GET(request: NextRequest) {
     // Get favorite folders
     const folders = await prisma.folder.findMany({
       where: {
-        ownerId: session.user.id,
+        ownerId: dbUser.id,
         isFavorite: true
       },
       include: {

@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth/auth'
+import { auth, getDbUser } from '@/lib/auth/auth'
 import prisma from '@/lib/db/prisma'
 
 // GET - List all trashed files
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth()
-    
-    if (!session?.user?.id) {
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'غير مصرح' },
+        { status: 401 }
+      )
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return NextResponse.json(
         { error: 'غير مصرح' },
         { status: 401 }
@@ -22,7 +28,7 @@ export async function GET(request: NextRequest) {
 
     // Build where clause - only get deleted files
     const where = {
-      ownerId: session.user.id,
+      ownerId: dbUser.id,
       deletedAt: { not: null },
     }
 
@@ -52,7 +58,7 @@ export async function GET(request: NextRequest) {
       const deletedDate = file.deletedAt ? new Date(file.deletedAt) : new Date()
       const permanentDeleteDate = new Date(deletedDate)
       permanentDeleteDate.setDate(permanentDeleteDate.getDate() + 30)
-      
+
       const now = new Date()
       const daysRemaining = Math.ceil(
         (permanentDeleteDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)

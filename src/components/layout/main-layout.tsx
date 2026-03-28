@@ -8,7 +8,7 @@ import { UserProfileMenu } from "@/components/shared/user-profile-menu"
 import { ThemeSwitcher } from "@/components/shared/theme-switcher"
 import { NotificationMenu } from "@/components/shared/notification-menu"
 import { SearchBar } from "@/components/shared/search-bar"
-import { auth } from "@/lib/auth/auth"
+import { getDbUser } from "@/lib/auth/auth"
 import { redirect } from "next/navigation"
 import prisma from "@/lib/db/prisma"
 
@@ -17,15 +17,15 @@ interface MainLayoutProps {
 }
 
 export default async function MainLayout({ children }: MainLayoutProps) {
-  const session = await auth()
+  const dbUser = await getDbUser()
 
-  if (!session || !session.user) {
+  if (!dbUser) {
     redirect("/sign-in")
   }
 
   // Get user roles
   const userWithRoles = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: dbUser.id },
     include: {
       roles: {
         include: { role: true }
@@ -47,9 +47,9 @@ export default async function MainLayout({ children }: MainLayoutProps) {
             <NotificationMenu />
             <ThemeSwitcher />
             <UserProfileMenu
-              userName={session.user.name || "مستخدم"}
-              userEmail={session.user.email || ""}
-              userImage={session.user.image || ""}
+              userName={dbUser.name || "مستخدم"}
+              userEmail={dbUser.email || ""}
+              userImage={dbUser.image || ""}
             />
           </div>
         </header>
@@ -60,8 +60,8 @@ export default async function MainLayout({ children }: MainLayoutProps) {
       <AppSidebar 
         side="right" 
         userRoles={userRoles}
-        userName={session.user.name || undefined}
-        userEmail={session.user.email || undefined}
+        userName={dbUser.name || undefined}
+        userEmail={dbUser.email || undefined}
       />
     </SidebarProvider>
   )

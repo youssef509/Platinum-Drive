@@ -4,7 +4,7 @@
 
 ### Modern Cloud Storage Platform with Enterprise-Grade Security
 
-[![Next.js](https://img.shields.io/badge/Next.js-15.5.5-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-16.x-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 [![Prisma](https://img.shields.io/badge/Prisma-6.17.1-2D3748?style=for-the-badge&logo=prisma)](https://www.prisma.io/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Latest-336791?style=for-the-badge&logo=postgresql)](https://www.postgresql.org/)
@@ -48,12 +48,12 @@ Platinum Drive is an open-source cloud storage platform built with modern techno
 <td width="50%">
 
 ### 🔐 Security & Authentication
-- **Two-Factor Authentication (2FA)** with time-based OTP
-- **Email Verification** with 6-digit codes
+- **Clerk Authentication** for secure sign-in/sign-up
+- **Email Verification** with 6-digit codes via Clerk
 - **Password Policies**: History tracking, expiry, complexity rules
 - **Account Protection**: Login attempt tracking & lockout
-- **Session Management** with NextAuth.js
-- **Bcrypt Password Hashing**
+- **Session Management** with Clerk (@clerk/nextjs)
+- **Role-Based Access Control** with Prisma user roles
 
 </td>
 <td width="50%">
@@ -108,7 +108,7 @@ Platinum Drive is an open-source cloud storage platform built with modern techno
 <td align="center" width="33%">
 
 ### Frontend
-- Next.js 15.5.5 (App Router)
+- Next.js 16.x (App Router)
 - React 19
 - TypeScript 5.0
 - Tailwind CSS
@@ -120,7 +120,7 @@ Platinum Drive is an open-source cloud storage platform built with modern techno
 
 ### Backend
 - Next.js API Routes
-- NextAuth.js Authentication
+- Clerk Authentication (@clerk/nextjs v7)
 - Prisma ORM
 - PostgreSQL Database
 - Bcryptjs Hashing
@@ -187,12 +187,15 @@ Create a `.env` file in the root directory:
 # Database
 DATABASE_URL="postgresql://user:password@localhost:5432/platinum_drive"
 
-# NextAuth
-NEXTAUTH_SECRET="your-secret-key-here"
-NEXTAUTH_URL="http://localhost:3000"
-AUTH_TRUST_HOST="true"
+# Clerk Authentication (required)
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_test_..."
+CLERK_SECRET_KEY="sk_test_..."
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/
+NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/
 
-# Email (Optional - for verification & 2FA)
+# Email (Optional - for notifications)
 SMTP_HOST="smtp.gmail.com"
 SMTP_PORT="587"
 SMTP_USER="your-email@gmail.com"
@@ -332,7 +335,8 @@ docker build -t platinum-drive .
 # Run the container
 docker run -p 3000:3000 \
   -e DATABASE_URL="your-db-url" \
-  -e NEXTAUTH_SECRET="your-secret" \
+  -e NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_..." \
+  -e CLERK_SECRET_KEY="sk_..." \
   platinum-drive
 ```
 
@@ -355,16 +359,19 @@ gcloud run deploy platinum-drive \
   --region europe-west1 \
   --allow-unauthenticated \
   --port 8080 \
-  --set-env-vars DATABASE_URL="your-db-url",NEXTAUTH_SECRET="your-secret"
+  --set-env-vars DATABASE_URL="your-db-url",CLERK_SECRET_KEY="your-clerk-secret"
 ```
 
 ### Production Environment Variables
 
 ```yaml
 DATABASE_URL=postgresql://user:pass@host:5432/dbname
-NEXTAUTH_SECRET=your-production-secret-min-32-chars
-NEXTAUTH_URL=https://your-domain.com
-AUTH_TRUST_HOST=true
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_...
+CLERK_SECRET_KEY=sk_live_...
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/
+NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/
 NODE_ENV=production
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
@@ -483,7 +490,7 @@ Built with amazing open-source technologies:
 
 - [Next.js](https://nextjs.org/) - The React Framework for Production
 - [Prisma](https://www.prisma.io/) - Next-generation ORM
-- [NextAuth.js](https://next-auth.js.org/) - Authentication for Next.js
+- [Clerk](https://clerk.com/) - Authentication & User Management
 - [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS framework
 - [Shadcn/ui](https://ui.shadcn.com/) - Re-usable component library
 - [Lucide Icons](https://lucide.dev/) - Beautiful & consistent icons

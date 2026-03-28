@@ -1,13 +1,16 @@
 import { NextRequest } from "next/server"
-import { auth } from "@/lib/auth/auth"
+import { auth, getDbUser } from "@/lib/auth/auth"
 import prisma from "@/lib/db/prisma"
 import { errorResponse, successResponse } from "@/lib/api/api-utils"
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth()
-
-    if (!session || !session.user) {
+    const { userId } = await auth()
+    if (!userId) {
+      return errorResponse("غير مصرح", 401)
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return errorResponse("غير مصرح", 401)
     }
 
@@ -19,7 +22,7 @@ export async function GET(request: NextRequest) {
     // Fetch login history for the current user
     const loginHistory = await prisma.loginHistory.findMany({
       where: {
-        userId: session.user.id,
+        userId: dbUser.id,
       },
       orderBy: {
         createdAt: "desc",
@@ -31,7 +34,7 @@ export async function GET(request: NextRequest) {
     // Get total count for pagination
     const total = await prisma.loginHistory.count({
       where: {
-        userId: session.user.id,
+        userId: dbUser.id,
       },
     })
 

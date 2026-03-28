@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth/auth'
+import { auth, getDbUser } from '@/lib/auth/auth'
 import prisma from '@/lib/db/prisma'
 import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
@@ -7,17 +7,21 @@ import { calculateLinkExpiry, getDefaultSharePermission, getDefaultLinkExpiry } 
 
 export async function POST(request: Request) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json({ error: 'غير مصرح' }, { status: 401 })
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return NextResponse.json({ error: 'غير مصرح' }, { status: 401 })
     }
 
     const body = await request.json()
     const { fileId, expiresIn, password, permission, notes } = body
-    
+
     // Get user's default settings
-    const defaultPermission = await getDefaultSharePermission(session.user.id)
-    const defaultExpiry = await getDefaultLinkExpiry(session.user.id)
+    const defaultPermission = await getDefaultSharePermission(dbUser.id)
+    const defaultExpiry = await getDefaultLinkExpiry(dbUser.id)
 
     // Verify file ownership
     const file = await prisma.file.findUnique({
@@ -28,7 +32,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'الملف غير موجود' }, { status: 404 })
     }
 
-    if (file.ownerId !== session.user.id) {
+    if (file.ownerId !== dbUser.id) {
       return NextResponse.json({ error: 'غير مصرح بمشاركة هذا الملف' }, { status: 403 })
     }
 
@@ -72,7 +76,7 @@ export async function POST(request: Request) {
       data: {
         fileId,
         token,
-        createdById: session.user.id,
+        createdById: dbUser.id,
         expiresAt,
         passwordHash,
         permission: permission || defaultPermission || 'read',
@@ -91,7 +95,7 @@ export async function POST(request: Request) {
     })
 
     // Generate shareable URL
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000'
     const shareUrl = `${baseUrl}/share/${token}`
 
     return NextResponse.json({
@@ -113,8 +117,12 @@ export async function POST(request: Request) {
 // Get all share links for a file
 export async function GET(request: Request) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json({ error: 'غير مصرح' }, { status: 401 })
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return NextResponse.json({ error: 'غير مصرح' }, { status: 401 })
     }
 
@@ -130,7 +138,7 @@ export async function GET(request: Request) {
       where: { id: fileId },
     })
 
-    if (!file || file.ownerId !== session.user.id) {
+    if (!file || file.ownerId !== dbUser.id) {
       return NextResponse.json({ error: 'غير مصرح' }, { status: 403 })
     }
 
@@ -146,7 +154,7 @@ export async function GET(request: Request) {
     })
 
     // Add share URLs
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000'
     const linksWithUrls = sharedLinks.map((link: { token: string; passwordHash: string | null }) => ({
       ...link,
       shareUrl: `${baseUrl}/share/${link.token}`,

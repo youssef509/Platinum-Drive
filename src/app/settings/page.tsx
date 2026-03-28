@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth/auth"
+import { getDbUser } from "@/lib/auth/auth"
 import { redirect } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -11,9 +11,9 @@ import FileManagementSettingsForm from "./file-management-settings-form"
 import SecuritySettingsForm from "./security-settings-form"
 
 export default async function SettingsPage() {
-  const session = await auth()
+  const dbUser = await getDbUser()
 
-  if (!session || !session.user) {
+  if (!dbUser) {
     redirect("/sign-in")
   }
 

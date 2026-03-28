@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ThemeSwitcher } from "@/components/shared/theme-switcher";
-import { auth } from "@/lib/auth/auth";
+import { getDbUser } from "@/lib/auth/auth";
 import { UserProfileMenu } from "@/components/shared/user-profile-menu";
 import { Home } from "lucide-react";
 
@@ -11,7 +11,7 @@ export default async function HelpLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
+  const dbUser = await getDbUser();
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -45,7 +45,7 @@ export default async function HelpLayout({
           <div className="flex items-center gap-2">
             <ThemeSwitcher />
 
-            {session?.user ? (
+            {dbUser ? (
               <>
                 <Button asChild variant="outline" size="sm">
                   <Link href="/">
@@ -54,9 +54,9 @@ export default async function HelpLayout({
                   </Link>
                 </Button>
                 <UserProfileMenu
-                  userName={session.user.name || "مستخدم"}
-                  userEmail={session.user.email || ""}
-                  userImage={session.user.image || ""}
+                  userName={dbUser.name || "مستخدم"}
+                  userEmail={dbUser.email || ""}
+                  userImage={dbUser.image || ""}
                 />
               </>
             ) : (

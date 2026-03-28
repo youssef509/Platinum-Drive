@@ -1,23 +1,7 @@
 import { NextRequest } from "next/server"
-import { auth } from "@/lib/auth/auth"
+import { isAdminUser } from "@/lib/auth/auth"
 import prisma from "@/lib/db/prisma"
 import { errorResponse, successResponse } from "@/lib/api/api-utils"
-
-// Check if user is admin
-async function isAdmin(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: {
-      roles: {
-        include: {
-          role: true,
-        },
-      },
-    },
-  })
-
-  return user?.roles.some((ur: { role: { name: string } }) => ur.role.name === "admin") || false
-}
 
 export async function PATCH(
   request: NextRequest,
@@ -25,17 +9,14 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params
-    const session = await auth()
-
-    if (!session || !session.user || !(await isAdmin(session.user.id))) {
-      return errorResponse("غير مصرح - صلاحيات المسؤول مطلوبة", 403)
-    }
+    const { isAdmin: admin, user } = await isAdminUser();
+    if (!admin || !user) return errorResponse("غير مصرح - صلاحيات المسؤول مطلوبة", 403);
 
     const body = await request.json()
     const { isActive, accountStatus, suspendedReason } = body
 
     // Prevent admin from suspending themselves
-    if (id === session.user.id) {
+    if (id === user.id) {
       return errorResponse("لا يمكنك تعليق حسابك الخاص", 400)
     }
 
@@ -47,10 +28,10 @@ export async function PATCH(
 
     if (accountStatus) {
       updateData.accountStatus = accountStatus
-      
+
       if (accountStatus === "suspended" || accountStatus === "disabled") {
         updateData.suspendedAt = new Date()
-        updateData.suspendedBy = session.user.id
+        updateData.suspendedBy = user.id
         if (suspendedReason) {
           updateData.suspendedReason = suspendedReason
         }
@@ -61,7 +42,7 @@ export async function PATCH(
       }
     }
 
-    const user = await prisma.user.update({
+    const updatedUser = await prisma.user.update({
       where: { id },
       data: updateData,
       select: {
@@ -79,7 +60,7 @@ export async function PATCH(
     // Log the action
     await prisma.auditLog.create({
       data: {
-        actorId: session.user.id,
+        actorId: user.id,
         action: "USER_STATUS_UPDATED",
         targetType: "User",
         targetId: id,
@@ -89,7 +70,7 @@ export async function PATCH(
 
     return successResponse({
       message: "تم تحديث حالة المستخدم بنجاح",
-      user,
+      user: updatedUser,
     })
   } catch (error) {
     console.error("Update user status error:", error)

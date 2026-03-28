@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth/auth'
+import { auth, getDbUser } from '@/lib/auth/auth'
 import prisma from '@/lib/db/prisma'
 import { unlink } from 'fs/promises'
 import { join } from 'path'
@@ -7,9 +7,15 @@ import { join } from 'path'
 // DELETE - Empty entire trash (permanently delete all trashed files)
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await auth()
-    
-    if (!session?.user?.id) {
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'غير مصرح' },
+        { status: 401 }
+      )
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return NextResponse.json(
         { error: 'غير مصرح' },
         { status: 401 }
@@ -19,7 +25,7 @@ export async function DELETE(request: NextRequest) {
     // Find all trashed files for this user
     const trashedFiles = await prisma.file.findMany({
       where: {
-        ownerId: session.user.id,
+        ownerId: dbUser.id,
         deletedAt: { not: null },
       },
     })
@@ -49,14 +55,14 @@ export async function DELETE(request: NextRequest) {
     // Delete all from database
     const deleteResult = await prisma.file.deleteMany({
       where: {
-        ownerId: session.user.id,
+        ownerId: dbUser.id,
         deletedAt: { not: null },
       },
     })
 
     // Update user's used storage
     await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: dbUser.id },
       data: {
         usedStorageBytes: {
           decrement: BigInt(totalSize),

@@ -1,23 +1,7 @@
 import { NextRequest } from "next/server"
-import { auth } from "@/lib/auth/auth"
+import { isAdminUser } from "@/lib/auth/auth"
 import prisma from "@/lib/db/prisma"
 import { errorResponse, successResponse } from "@/lib/api/api-utils"
-
-// Check if user is admin
-async function isAdmin(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: {
-      roles: {
-        include: {
-          role: true,
-        },
-      },
-    },
-  })
-
-  return user?.roles.some((ur: { role: { name: string } }) => ur.role.name === "admin") || false
-}
 
 export async function PATCH(
   request: NextRequest,
@@ -25,16 +9,13 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params
-    const session = await auth()
-
-    if (!session || !session.user || !(await isAdmin(session.user.id))) {
-      return errorResponse("غير مصرح - صلاحيات المسؤول مطلوبة", 403)
-    }
+    const { isAdmin: admin, user } = await isAdminUser();
+    if (!admin || !user) return errorResponse("غير مصرح - صلاحيات المسؤول مطلوبة", 403);
 
     const body = await request.json()
 
-    const updateData: any = { updatedBy: session.user.id }
-    
+    const updateData: any = { updatedBy: user.id }
+
     if (body.isAllowed !== undefined) updateData.isAllowed = body.isAllowed
     if (body.maxFileSize !== undefined) {
       updateData.maxFileSize = body.maxFileSize ? BigInt(body.maxFileSize) : null
@@ -54,23 +35,19 @@ export async function PATCH(
       data: updateData,
     })
 
-    // Log the action
     await prisma.auditLog.create({
       data: {
-        actorId: session.user.id,
+        actorId: user.id,
         action: "FILE_TYPE_POLICY_UPDATED",
         targetType: "FileTypePolicy",
         targetId: id,
         payload: { updates: updateData },
       },
-    })
+    });
 
     return successResponse({
       message: "تم تحديث سياسة نوع الملف بنجاح",
-      policy: {
-        ...policy,
-        maxFileSize: policy.maxFileSize?.toString(),
-      },
+      policy: { ...policy, maxFileSize: policy.maxFileSize?.toString() },
     })
   } catch (error) {
     console.error("Update file type policy error:", error)
@@ -84,25 +61,21 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    const session = await auth()
-
-    if (!session || !session.user || !(await isAdmin(session.user.id))) {
-      return errorResponse("غير مصرح - صلاحيات المسؤول مطلوبة", 403)
-    }
+    const { isAdmin: admin, user } = await isAdminUser();
+    if (!admin || !user) return errorResponse("غير مصرح - صلاحيات المسؤول مطلوبة", 403);
 
     await prisma.fileTypePolicy.delete({
       where: { id: parseInt(id) },
     })
 
-    // Log the action
     await prisma.auditLog.create({
       data: {
-        actorId: session.user.id,
+        actorId: user.id,
         action: "FILE_TYPE_POLICY_DELETED",
         targetType: "FileTypePolicy",
         targetId: id,
       },
-    })
+    });
 
     return successResponse({ message: "تم حذف سياسة نوع الملف بنجاح" })
   } catch (error) {
