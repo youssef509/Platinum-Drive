@@ -31,8 +31,14 @@ const CredentialsSignInForm = () => {
                 await setActive({ session: result.createdSessionId });
                 router.push("/");
                 router.refresh();
+            } else if (result.status === 'needs_second_factor') {
+                setError("يتطلب حسابك التحقق بخطوتين. يرجى التحقق من بريدك الإلكتروني.");
+            } else if (result.status === 'needs_identifier') {
+                setError("يرجى إدخال البريد الإلكتروني");
+            } else if (result.status === 'needs_first_factor') {
+                setError("يرجى إدخال كلمة المرور");
             } else {
-                setError("حدث خطأ أثناء تسجيل الدخول، يرجى المحاولة مرة أخرى");
+                setError(`حدث خطأ أثناء تسجيل الدخول (${result.status})، يرجى المحاولة مرة أخرى`);
             }
         } catch (err: unknown) {
             const clerkError = err as { errors?: Array<{ message?: string; longMessage?: string }> };
