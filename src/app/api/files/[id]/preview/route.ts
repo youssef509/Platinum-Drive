@@ -44,22 +44,21 @@ export async function GET(
       return new NextResponse('File not found', { status: 404 })
     }
 
-    // Check permissions - user must own file
-    // TODO: Add shared file access check
     if (file.ownerId !== dbUser.id) {
       return new NextResponse('Forbidden', { status: 403 })
     }
 
-    // Read file from disk
-    const filePath = join(process.cwd(), 'public', file.storageKey)
+    // Blob storage (storageKey is a full URL) — redirect directly
+    if (file.storageKey.startsWith('http')) {
+      return NextResponse.redirect(file.storageKey)
+    }
 
+    // Fallback: local filesystem (development)
+    const filePath = join(process.cwd(), 'public', file.storageKey)
     if (!existsSync(filePath)) {
       return new NextResponse('File not found on disk', { status: 404 })
     }
-
     const fileBuffer = await readFile(filePath)
-
-    // Return file with appropriate headers for inline viewing
     return new NextResponse(fileBuffer as unknown as BodyInit, {
       headers: {
         'Content-Type': file.mimeType,

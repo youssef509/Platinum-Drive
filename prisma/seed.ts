@@ -28,19 +28,25 @@ export async function seedUsers() {
   const users = [
     {
       email: "youssef201.dev@gmail.com",
-      password: "005100",
-      name: "Youssef",
+      password: "vGZ2f4Y:-sp2x!z",
+      name: "Youssef Ahmed",
       roleName: "admin",
     },
     {
+      email: "youssef201.ahmed@gmail.com",
+      password: "vGZ2f4Y:-sp2x!z",
+      name: "Youssef",
+      roleName: "user",
+    },
+    {
       email: "john.doe@example.com",
-      password: "Test1234",
+      password: "vGZ2f4Y:-sp2x!z",
       name: "John Doe",
       roleName: "user",
     },
     {
       email: "jane.smith@example.com",
-      password: "Test1234",
+      password: "vGZ2f4Y:-sp2x!z",
       name: "Jane Smith",
       roleName: "user",
     },

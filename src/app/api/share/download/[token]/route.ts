@@ -56,27 +56,35 @@ export async function POST(
     }
 
     const file = sharedLink.file
-    const filePath = path.join(process.cwd(), 'public', file.storageKey)
-
-    // Check if file exists
-    if (!fs.existsSync(filePath)) {
-      return NextResponse.json({ error: 'الملف غير موجود' }, { status: 404 })
-    }
 
     // Increment downloads
     await prisma.sharedLink.update({
       where: { id: sharedLink.id },
-      data: {
-        downloads: {
-          increment: 1,
-        },
-      },
+      data: { downloads: { increment: 1 } },
     })
 
-    // Read file
-    const fileBuffer = fs.readFileSync(filePath)
+    // Blob storage (storageKey is a full URL)
+    if (file.storageKey.startsWith('http')) {
+      const response = await fetch(file.storageKey)
+      if (!response.ok) {
+        return NextResponse.json({ error: 'الملف غير موجود' }, { status: 404 })
+      }
+      const buffer = await response.arrayBuffer()
+      return new NextResponse(buffer, {
+        headers: {
+          'Content-Type': file.mimeType,
+          'Content-Disposition': `attachment; filename="${encodeURIComponent(file.name)}"`,
+          'Content-Length': file.size.toString(),
+        },
+      })
+    }
 
-    // Return file
+    // Fallback: local filesystem (development)
+    const filePath = path.join(process.cwd(), 'public', file.storageKey)
+    if (!fs.existsSync(filePath)) {
+      return NextResponse.json({ error: 'الملف غير موجود' }, { status: 404 })
+    }
+    const fileBuffer = fs.readFileSync(filePath)
     return new NextResponse(fileBuffer, {
       headers: {
         'Content-Type': file.mimeType,
