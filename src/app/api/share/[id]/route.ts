@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth/auth'
+import { auth, getDbUser } from '@/lib/auth/auth'
 import prisma from '@/lib/db/prisma'
 
 export async function DELETE(
@@ -7,8 +7,12 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json({ error: 'غير مصرح' }, { status: 401 })
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return NextResponse.json({ error: 'غير مصرح' }, { status: 401 })
     }
 
@@ -31,7 +35,7 @@ export async function DELETE(
     }
 
     // Verify ownership
-    if (sharedLink.file.ownerId !== session.user.id) {
+    if (sharedLink.file.ownerId !== dbUser.id) {
       return NextResponse.json({ error: 'غير مصرح بحذف هذا الرابط' }, { status: 403 })
     }
 
@@ -61,8 +65,12 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json({ error: 'غير مصرح' }, { status: 401 })
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return NextResponse.json({ error: 'غير مصرح' }, { status: 401 })
     }
 
@@ -89,11 +97,11 @@ export async function GET(
     }
 
     // Verify ownership
-    if (sharedLink.file.ownerId !== session.user.id) {
+    if (sharedLink.file.ownerId !== dbUser.id) {
       return NextResponse.json({ error: 'غير مصرح' }, { status: 403 })
     }
 
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000'
 
     return NextResponse.json({
       sharedLink: {

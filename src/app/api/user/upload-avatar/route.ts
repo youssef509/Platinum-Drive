@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth/auth"
+import { auth, getDbUser } from "@/lib/auth/auth"
 import prisma from "@/lib/db/prisma"
 import { writeFile, mkdir } from "fs/promises"
 import { join } from "path"
@@ -7,9 +7,15 @@ import { existsSync } from "fs"
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth()
-    
-    if (!session?.user?.id) {
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json(
+        { error: "غير مصرح لك بالوصول" },
+        { status: 401 }
+      )
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return NextResponse.json(
         { error: "غير مصرح لك بالوصول" },
         { status: 401 }
@@ -52,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     // Generate unique filename
     const fileExtension = file.name.split('.').pop()
-    const fileName = `${session.user.id}-${Date.now()}.${fileExtension}`
+    const fileName = `${dbUser.id}-${Date.now()}.${fileExtension}`
     const filePath = join(uploadDir, fileName)
 
     // Convert file to buffer and save
@@ -65,7 +71,7 @@ export async function POST(request: NextRequest) {
 
     // Update user in database
     const updatedUser = await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: dbUser.id },
       data: { image: imageUrl },
       select: {
         id: true,

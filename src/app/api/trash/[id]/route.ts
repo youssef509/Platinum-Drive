@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth/auth'
+import { auth, getDbUser } from '@/lib/auth/auth'
 import prisma from '@/lib/db/prisma'
 import { unlink } from 'fs/promises'
 import { join } from 'path'
@@ -10,9 +10,15 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth()
-    
-    if (!session?.user?.id) {
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'غير مصرح' },
+        { status: 401 }
+      )
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return NextResponse.json(
         { error: 'غير مصرح' },
         { status: 401 }
@@ -35,7 +41,7 @@ export async function POST(
     }
 
     // Check ownership
-    if (file.ownerId !== session.user.id) {
+    if (file.ownerId !== dbUser.id) {
       return NextResponse.json(
         { error: 'غير مصرح' },
         { status: 403 }
@@ -68,7 +74,7 @@ export async function POST(
 
     // Send file restored notification
     const { notifyFileRestored } = await import('@/lib/services/notification')
-    await notifyFileRestored(session.user.id, file.name).catch(err =>
+    await notifyFileRestored(dbUser.id, file.name).catch(err =>
       console.error('Failed to send restore notification:', err)
     )
 
@@ -91,9 +97,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth()
-    
-    if (!session?.user?.id) {
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'غير مصرح' },
+        { status: 401 }
+      )
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return NextResponse.json(
         { error: 'غير مصرح' },
         { status: 401 }
@@ -116,7 +128,7 @@ export async function DELETE(
     }
 
     // Check ownership
-    if (file.ownerId !== session.user.id) {
+    if (file.ownerId !== dbUser.id) {
       return NextResponse.json(
         { error: 'غير مصرح' },
         { status: 403 }
@@ -146,7 +158,7 @@ export async function DELETE(
 
     // Update user's used storage
     await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: dbUser.id },
       data: {
         usedStorageBytes: {
           decrement: BigInt(file.size),

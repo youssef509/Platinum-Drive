@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Almarai } from "next/font/google";
 import { ThemeProvider } from "@/components/providers/theme-provider";
-import { SessionProvider } from "@/components/providers/session-provider";
+import { ClerkProvider } from '@clerk/nextjs';
 import { MaintenanceChecker } from "@/components/shared/maintenance-checker";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
@@ -56,7 +56,7 @@ export default function RootLayout({
         className={`${almarai.variable} ${geistSans.variable} ${geistMono.variable} antialiased`}
         style={{ fontFamily: "var(--font-almarai)" }}
       >
-        <SessionProvider>
+        <ClerkProvider>
           <ThemeProvider
             attribute="class"
             defaultTheme="system"
@@ -66,7 +66,7 @@ export default function RootLayout({
             <MaintenanceChecker>{children}</MaintenanceChecker>
             <Toaster />
           </ThemeProvider>
-        </SessionProvider>
+        </ClerkProvider>
       </body>
     </html>
   );

@@ -1,18 +1,18 @@
-import { auth } from '@/lib/auth/auth'
+import { getDbUser } from '@/lib/auth/auth'
 import { redirect } from 'next/navigation'
 import MainLayout from '@/components/layout/main-layout'
 import SearchPageClient from './search-client'
 
 export default async function SearchPage() {
-  const session = await auth()
+  const dbUser = await getDbUser()
 
-  if (!session?.user?.id) {
+  if (!dbUser?.id) {
     redirect('/sign-in')
   }
 
   return (
     <MainLayout>
-      <SearchPageClient userId={session.user.id} />
+      <SearchPageClient userId={dbUser.id} />
     </MainLayout>
   )
 }

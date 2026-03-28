@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth/auth"
+import { getDbUser } from "@/lib/auth/auth"
 import { redirect } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -11,24 +11,24 @@ import MainLayout from "@/components/layout/main-layout"
 import prisma from "@/lib/db/prisma"
 
 export default async function ProfilePage() {
-  const session = await auth()
+  const dbUser = await getDbUser()
 
-  if (!session || !session.user) {
+  if (!dbUser) {
     redirect("/sign-in")
   }
 
   // Fetch current user data directly from database to get fresh data including roles
   let userData = {
-    id: session.user.id || "",
-    name: session.user.name,
-    email: session.user.email,
-    image: session.user.image,
+    id: dbUser.id || "",
+    name: dbUser.name,
+    email: dbUser.email,
+    image: dbUser.image,
     roles: ['USER']
   }
 
   try {
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: dbUser.id },
       select: {
         id: true,
         name: true,
@@ -128,7 +128,7 @@ export default async function ProfilePage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-right">
-                <LoginHistory userId={session.user.id} />
+                <LoginHistory userId={dbUser.id} />
               </CardContent>
             </Card>
           </TabsContent>

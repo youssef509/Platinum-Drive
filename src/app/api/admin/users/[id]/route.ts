@@ -1,23 +1,7 @@
 import { NextRequest } from "next/server"
-import { auth } from "@/lib/auth/auth"
+import { isAdminUser } from "@/lib/auth/auth"
 import prisma from "@/lib/db/prisma"
 import { errorResponse, successResponse } from "@/lib/api/api-utils"
-
-// Check if user is admin
-async function isAdmin(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: {
-      roles: {
-        include: {
-          role: true,
-        },
-      },
-    },
-  })
-
-  return user?.roles.some((ur: { role: { name: string } }) => ur.role.name === "admin") || false
-}
 
 export async function PATCH(
   request: NextRequest,
@@ -25,11 +9,8 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params
-    const session = await auth()
-
-    if (!session || !session.user || !(await isAdmin(session.user.id))) {
-      return errorResponse("غير مصرح - صلاحيات المسؤول مطلوبة", 403)
-    }
+    const { isAdmin: admin, user } = await isAdminUser();
+    if (!admin || !user) return errorResponse("غير مصرح - صلاحيات المسؤول مطلوبة", 403);
 
     const body = await request.json()
     const { name, email, storageQuotaBytes, role } = body

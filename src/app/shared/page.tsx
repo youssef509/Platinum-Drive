@@ -1,18 +1,18 @@
 import { redirect } from 'next/navigation'
-import { auth } from '@/lib/auth/auth'
+import { getDbUser } from '@/lib/auth/auth'
 import SharedLinksClient from './shared-client'
 import MainLayout from '@/components/layout/main-layout'
 
 export default async function SharedLinksPage() {
-  const session = await auth()
+  const dbUser = await getDbUser()
 
-  if (!session?.user?.id) {
+  if (!dbUser?.id) {
     redirect('/sign-in')
   }
 
   return (
     <MainLayout>
-      <SharedLinksClient userId={session.user.id} />
+      <SharedLinksClient userId={dbUser.id} />
     </MainLayout>
   )
 }

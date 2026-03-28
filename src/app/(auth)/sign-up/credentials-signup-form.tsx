@@ -3,8 +3,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { useSignUp } from "@clerk/nextjs/legacy";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
 
 const CredentialsSignUpForm = () => {
     const [email, setEmail] = useState("");
@@ -14,67 +14,47 @@ const CredentialsSignUpForm = () => {
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
+    const { signUp, setActive, isLoaded } = useSignUp();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError("");
-        setIsLoading(true);
+        if (!isLoaded) return;
 
-        // Validate passwords match
+        setError("");
+
         if (password !== confirmPassword) {
             setError("كلمات المرور غير متطابقة");
-            setIsLoading(false);
             return;
         }
 
+        setIsLoading(true);
+
         try {
-            // Register user
-            const response = await fetch("/api/auth/register", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    email,
-                    password,
-                    name: name || undefined,
-                }),
-            });
+            const firstName = name.split(' ')[0] || name;
+            const lastName = name.split(' ').slice(1).join(' ') || undefined;
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                if (data.details) {
-                    // Handle Zod validation errors
-                    const errorMessages = Object.values(data.details).flat().join(", ");
-                    setError(errorMessages);
-                } else {
-                    setError(data.error || "حدث خطأ أثناء إنشاء الحساب");
-                }
-                return;
-            }
-
-            // If email verification is required, redirect to verify page
-            if (data.requiresVerification) {
-                router.push(`/verify?email=${encodeURIComponent(email)}`);
-                return;
-            }
-
-            // Auto login after successful registration (only if verification not required)
-            const signInResult = await signIn("credentials", {
-                email,
+            const result = await signUp.create({
+                emailAddress: email,
                 password,
-                redirect: false,
+                firstName,
+                lastName,
             });
 
-            if (signInResult?.error) {
-                setError("تم إنشاء الحساب بنجاح، لكن حدث خطأ في تسجيل الدخول");
-            } else if (signInResult?.ok) {
+            if (result.status === 'complete') {
+                await setActive({ session: result.createdSessionId });
                 router.push("/");
                 router.refresh();
+            } else if (result.status === 'missing_requirements') {
+                // Email verification required
+                await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+                router.push(`/verify?email=${encodeURIComponent(email)}`);
             }
-        } catch (err) {
-            setError("حدث خطأ أثناء إنشاء الحساب");
+        } catch (err: unknown) {
+            const clerkError = err as { errors?: Array<{ message?: string; longMessage?: string }> };
+            const message = clerkError.errors?.[0]?.longMessage
+                || clerkError.errors?.[0]?.message
+                || "حدث خطأ أثناء إنشاء الحساب";
+            setError(message);
         } finally {
             setIsLoading(false);
         }
@@ -135,7 +115,7 @@ const CredentialsSignUpForm = () => {
                         placeholder="أعد إدخال كلمة المرور"
                     />
                 </div>
-                <Button type="submit" disabled={isLoading} className="w-full">
+                <Button type="submit" disabled={isLoading || !isLoaded} className="w-full">
                     {isLoading ? "جاري إنشاء الحساب..." : "إنشاء حساب"}
                 </Button>
             </div>
@@ -144,4 +124,3 @@ const CredentialsSignUpForm = () => {
 };
 
 export default CredentialsSignUpForm;
-

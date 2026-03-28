@@ -1,32 +1,13 @@
 import { NextRequest } from "next/server"
-import { auth } from "@/lib/auth/auth"
+import { isAdminUser } from "@/lib/auth/auth"
 import prisma from "@/lib/db/prisma"
 import { errorResponse, successResponse } from "@/lib/api/api-utils"
 import { clearDateSettingsCache } from "@/lib/utils/date"
 
-// Check if user is admin
-async function isAdmin(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: {
-      roles: {
-        include: {
-          role: true,
-        },
-      },
-    },
-  })
-
-  return user?.roles.some((ur: { role: { name: string } }) => ur.role.name === "admin") || false
-}
-
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth()
-
-    if (!session || !session.user || !(await isAdmin(session.user.id))) {
-      return errorResponse("غير مصرح - صلاحيات المسؤول مطلوبة", 403)
-    }
+    const { isAdmin: admin, user } = await isAdminUser();
+    if (!admin || !user) return errorResponse("غير مصرح - صلاحيات المسؤول مطلوبة", 403);
 
     const { searchParams } = new URL(request.url)
     const category = searchParams.get("category")
@@ -56,11 +37,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth()
-
-    if (!session || !session.user || !(await isAdmin(session.user.id))) {
-      return errorResponse("غير مصرح - صلاحيات المسؤول مطلوبة", 403)
-    }
+    const { isAdmin: admin, user } = await isAdminUser();
+    if (!admin || !user) return errorResponse("غير مصرح - صلاحيات المسؤول مطلوبة", 403);
 
     const body = await request.json()
     const { key, value, category, description, isPublic } = body
@@ -76,20 +54,20 @@ export async function POST(request: NextRequest) {
         category,
         description,
         isPublic: isPublic || false,
-        updatedBy: session.user.id,
+        updatedBy: user.id,
       },
-    })
+    });
 
     // Log the action
     await prisma.auditLog.create({
       data: {
-        actorId: session.user.id,
+        actorId: user.id,
         action: "SYSTEM_SETTING_CREATED",
         targetType: "SystemSettings",
         targetId: setting.id,
         payload: { key, value, category },
       },
-    })
+    });
 
     return successResponse({
       message: "تم إنشاء الإعداد بنجاح",
@@ -103,11 +81,8 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const session = await auth()
-
-    if (!session || !session.user || !(await isAdmin(session.user.id))) {
-      return errorResponse("غير مصرح - صلاحيات المسؤول مطلوبة", 403)
-    }
+    const { isAdmin: admin, user } = await isAdminUser();
+    if (!admin || !user) return errorResponse("غير مصرح - صلاحيات المسؤول مطلوبة", 403);
 
     const body = await request.json()
     const { settings } = body
@@ -119,22 +94,21 @@ export async function PUT(request: NextRequest) {
     // Update or create each setting
     const updatePromises = Object.entries(settings).map(async ([key, value]) => {
       // Determine category from key prefix
-      const category = key.split('.')[0]
-      
+      const category = key.split('.')[0];
       return prisma.systemSettings.upsert({
         where: { key },
         update: {
           value: String(value),
-          updatedBy: session.user.id,
+          updatedBy: user.id,
         },
         create: {
           key,
           value: String(value),
           category,
-          updatedBy: session.user.id,
+          updatedBy: user.id,
         },
-      })
-    })
+      });
+    });
 
     await Promise.all(updatePromises)
 
@@ -144,12 +118,12 @@ export async function PUT(request: NextRequest) {
     // Log the action
     await prisma.auditLog.create({
       data: {
-        actorId: session.user.id,
+        actorId: user.id,
         action: "SYSTEM_SETTINGS_UPDATED",
         targetType: "SystemSettings",
         payload: { settingsCount: Object.keys(settings).length },
       },
-    })
+    });
 
     return successResponse({
       message: "تم تحديث الإعدادات بنجاح",

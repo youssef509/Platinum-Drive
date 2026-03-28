@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { signOut } from "next-auth/react"
+import { useClerk } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
 
 interface UserProfileMenuProps {
@@ -25,16 +25,15 @@ export function UserProfileMenu({
   userImage,
 }: UserProfileMenuProps) {
   const router = useRouter()
+  const { signOut } = useClerk()
 
-  // Get first letter of name for fallback
   const getInitials = (name: string) => {
     return name.charAt(0).toUpperCase()
   }
 
   const handleLogout = async () => {
-    await signOut({ redirect: false })
+    await signOut()
     router.push("/sign-in")
-    router.refresh()
   }
 
   return (

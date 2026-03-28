@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth/auth'
+import { auth, getDbUser } from '@/lib/auth/auth'
 import {
   notifyStorageWarning,
   notifyStorageFull,
@@ -17,9 +17,15 @@ import {
  */
 export async function POST(request: Request) {
   try {
-    const session = await auth()
-    
-    if (!session?.user?.id) {
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'غير مصرح' },
+        { status: 401 }
+      )
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return NextResponse.json(
         { error: 'غير مصرح' },
         { status: 401 }
@@ -33,28 +39,28 @@ export async function POST(request: Request) {
 
     switch (type) {
       case 'storage_warning_80':
-        result = await notifyStorageWarning(session.user.id, 80)
+        result = await notifyStorageWarning(dbUser.id, 80)
         break
       case 'storage_warning_90':
-        result = await notifyStorageWarning(session.user.id, 90)
+        result = await notifyStorageWarning(dbUser.id, 90)
         break
       case 'storage_warning_95':
-        result = await notifyStorageWarning(session.user.id, 95)
+        result = await notifyStorageWarning(dbUser.id, 95)
         break
       case 'storage_full':
-        result = await notifyStorageFull(session.user.id)
+        result = await notifyStorageFull(dbUser.id)
         break
       case 'trash_delete_soon':
-        result = await notifyTrashAutoDeleteSoon(session.user.id, 15, 3)
+        result = await notifyTrashAutoDeleteSoon(dbUser.id, 15, 3)
         break
       case 'share_accessed':
-        result = await notifyShareAccessed(session.user.id, 'تقرير_المشروع.pdf', 'مستخدم غير معروف')
+        result = await notifyShareAccessed(dbUser.id, 'تقرير_المشروع.pdf', 'مستخدم غير معروف')
         break
       case 'new_login':
-        result = await notifyNewLogin(session.user.id, 'Chrome على Windows', 'القاهرة، مصر')
+        result = await notifyNewLogin(dbUser.id, 'Chrome على Windows', 'القاهرة، مصر')
         break
       case 'password_changed':
-        result = await notifyPasswordChanged(session.user.id)
+        result = await notifyPasswordChanged(dbUser.id)
         break
       case 'admin_new_user':
         result = await notifyAdminsNewUser('newuser@example.com', 'مستخدم جديد')
@@ -64,10 +70,10 @@ export async function POST(request: Request) {
         break
       default:
         // Create all types at once
-        await notifyStorageWarning(session.user.id, 90)
-        await notifyTrashAutoDeleteSoon(session.user.id, 10, 2)
-        await notifyShareAccessed(session.user.id, 'مستند_مهم.docx', 'زميل')
-        await notifyNewLogin(session.user.id, 'Safari على iPhone', 'الإسكندرية')
+        await notifyStorageWarning(dbUser.id, 90)
+        await notifyTrashAutoDeleteSoon(dbUser.id, 10, 2)
+        await notifyShareAccessed(dbUser.id, 'مستند_مهم.docx', 'زميل')
+        await notifyNewLogin(dbUser.id, 'Safari على iPhone', 'الإسكندرية')
         result = { message: 'Created multiple test notifications' }
     }
 

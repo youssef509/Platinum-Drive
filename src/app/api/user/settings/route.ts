@@ -1,26 +1,29 @@
 import { NextRequest } from "next/server"
-import { auth } from "@/lib/auth/auth"
+import { auth, getDbUser } from "@/lib/auth/auth"
 import prisma from "@/lib/db/prisma"
 import { errorResponse, successResponse } from "@/lib/api/api-utils"
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth()
-
-    if (!session || !session.user) {
+    const { userId } = await auth()
+    if (!userId) {
+      return errorResponse("غير مصرح", 401)
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return errorResponse("غير مصرح", 401)
     }
 
     // Get or create user settings
     let settings = await prisma.userSettings.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: dbUser.id },
     })
 
     // Create default settings if they don't exist
     if (!settings) {
       settings = await prisma.userSettings.create({
         data: {
-          userId: session.user.id,
+          userId: dbUser.id,
         },
       })
     }
@@ -34,9 +37,12 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await auth()
-
-    if (!session || !session.user) {
+    const { userId } = await auth()
+    if (!userId) {
+      return errorResponse("غير مصرح", 401)
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return errorResponse("غير مصرح", 401)
     }
 
@@ -44,10 +50,10 @@ export async function PATCH(request: NextRequest) {
 
     // Update or create settings
     const settings = await prisma.userSettings.upsert({
-      where: { userId: session.user.id },
+      where: { userId: dbUser.id },
       update: body,
       create: {
-        userId: session.user.id,
+        userId: dbUser.id,
         ...body,
       },
     })

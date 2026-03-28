@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth/auth'
+import { auth, getDbUser } from '@/lib/auth/auth'
 import prisma from '@/lib/db/prisma'
 import { readFile } from 'fs/promises'
 import { join } from 'path'
@@ -10,9 +10,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth()
-    
-    if (!session?.user?.id) {
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'غير مصرح' },
+        { status: 401 }
+      )
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return NextResponse.json(
         { error: 'غير مصرح' },
         { status: 401 }
@@ -43,7 +49,7 @@ export async function GET(
     }
 
     // Check if user owns the file
-    if (file.ownerId !== session.user.id) {
+    if (file.ownerId !== dbUser.id) {
       return NextResponse.json(
         { error: 'غير مصرح بتحميل هذا الملف' },
         { status: 403 }

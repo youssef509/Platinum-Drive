@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth/auth'
+import { auth, getDbUser } from '@/lib/auth/auth'
 import prisma from '@/lib/db/prisma'
 
 export async function DELETE(
@@ -7,9 +7,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth()
-    
-    if (!session?.user?.id) {
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'غير مصرح' },
+        { status: 401 }
+      )
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return NextResponse.json(
         { error: 'غير مصرح' },
         { status: 401 }
@@ -38,7 +44,7 @@ export async function DELETE(
     }
 
     // Check ownership
-    if (file.ownerId !== session.user.id) {
+    if (file.ownerId !== dbUser.id) {
       return NextResponse.json(
         { error: 'غير مصرح بحذف هذا الملف' },
         { status: 403 }
@@ -55,7 +61,7 @@ export async function DELETE(
 
     // Update user's storage usage
     await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: dbUser.id },
       data: {
         usedStorageBytes: {
           decrement: BigInt(file.size),
@@ -65,7 +71,7 @@ export async function DELETE(
 
     // Send file deleted notification
     const { notifyFileDeleted } = await import('@/lib/services/notification')
-    await notifyFileDeleted(session.user.id, file.name).catch(err =>
+    await notifyFileDeleted(dbUser.id, file.name).catch(err =>
       console.error('Failed to send delete notification:', err)
     )
 

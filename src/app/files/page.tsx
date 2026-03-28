@@ -1,18 +1,18 @@
-import { auth } from '@/lib/auth/auth'
+import { getDbUser } from '@/lib/auth/auth'
 import { redirect } from 'next/navigation'
 import MainLayout from '@/components/layout/main-layout'
 import FilesPageClient from './files-client'
 
 export default async function FilesPage() {
-  const session = await auth()
+  const dbUser = await getDbUser()
 
-  if (!session?.user?.id) {
+  if (!dbUser?.id) {
     redirect('/sign-in')
   }
 
   return (
     <MainLayout>
-      <FilesPageClient userId={session.user.id} />
+      <FilesPageClient userId={dbUser.id} />
     </MainLayout>
   )
 }

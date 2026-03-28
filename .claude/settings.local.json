@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(ls /c/Users/Youss/Desktop/Platinum-Drive/src/app/'\\(auth\\)'/sign-in/)",
+      "Bash(find /c/Users/Youss/Desktop/Platinum-Drive/node_modules/@clerk/nextjs/dist/types -name useSignIn*)",
+      "Bash(find /c/Users/Youss/Desktop/Platinum-Drive/node_modules/@clerk -name *.d.ts)",
+      "Bash(xargs grep:*)",
+      "Bash(find /c/Users/Youss/Desktop/Platinum-Drive/node_modules/@clerk/shared -name *.d.ts)",
+      "Bash(head -5 /c/Users/Youss/Desktop/Platinum-Drive/src/app/'\\(auth\\)'/verify/page.tsx)",
+      "Bash(git fetch:*)",
+      "Bash(git merge:*)"
+    ]
+  }
+}

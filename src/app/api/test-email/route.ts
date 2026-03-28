@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth/auth'
+import { auth, getDbUser } from '@/lib/auth/auth'
 
 /**
  * POST /api/test-email
@@ -16,9 +16,15 @@ export async function POST(request: Request) {
       sendWelcomeEmail,
     } = await import('@/lib/services/email')
 
-    const session = await auth()
-    
-    if (!session?.user?.id) {
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'غير مصرح' },
+        { status: 401 }
+      )
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return NextResponse.json(
         { error: 'غير مصرح' },
         { status: 401 }
@@ -28,8 +34,8 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { type, email } = body
 
-    const userEmail = email || session.user.email
-    const userName = session.user.name
+    const userEmail = email || dbUser.email
+    const userName = dbUser.name
 
     let result = false
 

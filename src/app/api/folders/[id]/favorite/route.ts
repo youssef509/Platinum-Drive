@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth/auth"
+import { auth, getDbUser } from "@/lib/auth/auth"
 import prisma from "@/lib/db/prisma"
 
 interface RouteParams {
@@ -11,9 +11,15 @@ interface RouteParams {
 // POST /api/folders/[id]/favorite - Toggle favorite status for folder
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const session = await auth()
-    
-    if (!session?.user?.id) {
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json(
+        { error: "غير مصرح لك بالوصول" },
+        { status: 401 }
+      )
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return NextResponse.json(
         { error: "غير مصرح لك بالوصول" },
         { status: 401 }
@@ -39,7 +45,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    if (folder.ownerId !== session.user.id) {
+    if (folder.ownerId !== dbUser.id) {
       return NextResponse.json(
         { error: "غير مصرح لك بتعديل هذا المجلد" },
         { status: 403 }

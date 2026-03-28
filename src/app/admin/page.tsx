@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth/auth"
+import { getDbUser } from "@/lib/auth/auth"
 import { redirect } from "next/navigation"
 import prisma from "@/lib/db/prisma"
 import AdminWrapper from "./admin-wrapper"
@@ -100,15 +100,15 @@ async function getDashboardStats() {
 }
 
 export default async function AdminPage() {
-  const session = await auth()
+  const dbUser = await getDbUser()
 
-  if (!session?.user?.id) {
+  if (!dbUser?.id) {
     redirect('/sign-in')
   }
 
   // Get user with roles for both admin check and layout
   const userWithRoles = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: dbUser.id },
     include: {
       roles: {
         include: { role: true }

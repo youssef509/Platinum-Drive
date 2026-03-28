@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { useSignUp } from '@clerk/nextjs/legacy'
 
 function VerifyContent() {
   const [code, setCode] = useState('')
@@ -15,6 +16,7 @@ function VerifyContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const email = searchParams.get('email')
+  const { signUp, setActive, isLoaded } = useSignUp()
 
   useEffect(() => {
     if (!email) {
@@ -24,51 +26,39 @@ function VerifyContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!isLoaded || !signUp) return
+
     setError('')
     setIsLoading(true)
 
     try {
-      const response = await fetch('/api/auth/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, code })
-      })
+      const result = await signUp.attemptEmailAddressVerification({ code })
 
-      const data = await response.json()
-
-      if (response.ok) {
+      if (result.status === 'complete') {
+        await setActive({ session: result.createdSessionId })
         setSuccess(true)
-        setTimeout(() => router.push('/sign-in'), 2000)
+        setTimeout(() => router.push('/'), 2000)
       } else {
-        setError(data.error || 'رمز التحقق غير صحيح')
+        setError('رمز التحقق غير صحيح أو انتهت صلاحيته')
       }
-    } catch (err) {
-      setError('حدث خطأ أثناء التحقق')
+    } catch (err: unknown) {
+      const clerkError = err as { errors?: Array<{ message?: string }> }
+      setError(clerkError.errors?.[0]?.message || 'رمز التحقق غير صحيح')
     } finally {
       setIsLoading(false)
     }
   }
 
   const handleResend = async () => {
+    if (!isLoaded || !signUp) return
     setResending(true)
     setError('')
 
     try {
-      const response = await fetch('/api/auth/resend-verification', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        setError('تم إرسال رمز جديد إلى بريدك الإلكتروني')
-      } else {
-        setError(data.error || 'فشل إعادة الإرسال')
-      }
-    } catch (err) {
-      setError('حدث خطأ أثناء إعادة الإرسال')
+      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' })
+      setError('تم إرسال رمز جديد إلى بريدك الإلكتروني')
+    } catch {
+      setError('فشل إعادة الإرسال')
     } finally {
       setResending(false)
     }
@@ -84,7 +74,7 @@ function VerifyContent() {
             </div>
             <h1 className="text-2xl font-bold">تم التحقق بنجاح!</h1>
             <p className="mt-2 text-gray-600 dark:text-gray-400">
-              جاري تحويلك إلى صفحة تسجيل الدخول...
+              جاري تحويلك إلى الصفحة الرئيسية...
             </p>
           </div>
         </div>
@@ -124,7 +114,7 @@ function VerifyContent() {
             />
           </div>
 
-          <Button type="submit" disabled={isLoading || code.length !== 6} className="w-full">
+          <Button type="submit" disabled={isLoading || code.length !== 6 || !isLoaded} className="w-full">
             {isLoading ? 'جاري التحقق...' : 'تحقق'}
           </Button>
 
@@ -132,7 +122,7 @@ function VerifyContent() {
             <button
               type="button"
               onClick={handleResend}
-              disabled={resending}
+              disabled={resending || !isLoaded}
               className="text-sm text-blue-600 hover:underline disabled:opacity-50 dark:text-blue-400"
             >
               {resending ? 'جاري الإرسال...' : 'إعادة إرسال الرمز'}

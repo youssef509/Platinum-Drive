@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth/auth'
+import { auth, getDbUser } from '@/lib/auth/auth'
 import prisma from '@/lib/db/prisma'
 import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
@@ -21,9 +21,15 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth()
-    
-    if (!session?.user?.id) {
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'غير مصرح' },
+        { status: 401 }
+      )
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return NextResponse.json(
         { error: 'غير مصرح' },
         { status: 401 }
@@ -32,7 +38,7 @@ export async function POST(request: NextRequest) {
 
     // Get user with storage info and settings
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: dbUser.id },
       select: {
         id: true,
         usedStorageBytes: true,

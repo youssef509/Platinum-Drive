@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server"
-import { auth } from "@/lib/auth/auth"
+import { auth, getDbUser } from "@/lib/auth/auth"
 import prisma from "@/lib/db/prisma"
 import { updateProfileSchema } from "@/lib/validations/schemas"
 import { validationErrorResponse, errorResponse, successResponse } from "@/lib/api/api-utils"
@@ -7,9 +7,12 @@ import { ZodError } from "zod"
 
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await auth()
-
-    if (!session || !session.user) {
+    const { userId } = await auth()
+    if (!userId) {
+      return errorResponse("Unauthorized", 401)
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return errorResponse("Unauthorized", 401)
     }
 
@@ -19,7 +22,7 @@ export async function PATCH(request: NextRequest) {
     const validatedData = updateProfileSchema.parse(body)
 
     // If email is being updated, check if it's already in use
-    if (validatedData.email && validatedData.email !== session.user.email) {
+    if (validatedData.email && validatedData.email !== dbUser.email) {
       const existingUser = await prisma.user.findUnique({
         where: { email: validatedData.email },
       })
@@ -31,7 +34,7 @@ export async function PATCH(request: NextRequest) {
 
     // Update user profile
     const updatedUser = await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: dbUser.id },
       data: validatedData,
       select: {
         id: true,

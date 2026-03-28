@@ -1,31 +1,12 @@
 import { NextRequest } from "next/server"
-import { auth } from "@/lib/auth/auth"
+import { isAdminUser } from "@/lib/auth/auth"
 import prisma from "@/lib/db/prisma"
 import { errorResponse, successResponse } from "@/lib/api/api-utils"
 
-// Check if user is admin
-async function isAdmin(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: {
-      roles: {
-        include: {
-          role: true,
-        },
-      },
-    },
-  })
-
-  return user?.roles.some((ur: { role: { name: string } }) => ur.role.name === "admin") || false
-}
-
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth()
-
-    if (!session || !session.user || !(await isAdmin(session.user.id))) {
-      return errorResponse("غير مصرح - صلاحيات المسؤول مطلوبة", 403)
-    }
+    const { isAdmin: admin, user } = await isAdminUser();
+    if (!admin || !user) return errorResponse("غير مصرح - صلاحيات المسؤول مطلوبة", 403);
 
     const { searchParams } = new URL(request.url)
     const category = searchParams.get("category")
@@ -40,7 +21,6 @@ export async function GET(request: NextRequest) {
       orderBy: [{ category: "asc" }, { mimeType: "asc" }],
     })
 
-    // Convert BigInt to string for JSON serialization
     const serializedPolicies = policies.map((policy: { maxFileSize: bigint | null }) => ({
       ...policy,
       maxFileSize: policy.maxFileSize ? policy.maxFileSize.toString() : null,
@@ -55,26 +35,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth()
-
-    if (!session || !session.user || !(await isAdmin(session.user.id))) {
-      return errorResponse("غير مصرح - صلاحيات المسؤول مطلوبة", 403)
-    }
+    const { isAdmin: admin, user } = await isAdminUser();
+    if (!admin || !user) return errorResponse("غير مصرح - صلاحيات المسؤول مطلوبة", 403);
 
     const body = await request.json()
     const {
-      mimeType,
-      extension,
-      category,
-      isAllowed,
-      maxFileSize,
-      requiresApproval,
-      scanOnUpload,
-      generatePreview,
-      convertFormat,
-      displayName,
-      icon,
-      color,
+      mimeType, extension, category, isAllowed, maxFileSize,
+      requiresApproval, scanOnUpload, generatePreview,
+      convertFormat, displayName, icon, color,
     } = body
 
     if (!mimeType) {
@@ -83,40 +51,31 @@ export async function POST(request: NextRequest) {
 
     const policy = await prisma.fileTypePolicy.create({
       data: {
-        mimeType,
-        extension,
-        category,
+        mimeType, extension, category,
         isAllowed: isAllowed !== undefined ? isAllowed : true,
         maxFileSize: maxFileSize ? BigInt(maxFileSize) : null,
         requiresApproval: requiresApproval || false,
         scanOnUpload: scanOnUpload !== undefined ? scanOnUpload : true,
         generatePreview: generatePreview || false,
-        convertFormat,
-        displayName,
-        icon,
-        color,
-        createdBy: session.user.id,
-        updatedBy: session.user.id,
+        convertFormat, displayName, icon, color,
+        createdBy: user.id,
+        updatedBy: user.id,
       },
-    })
+    });
 
-    // Log the action
     await prisma.auditLog.create({
       data: {
-        actorId: session.user.id,
+        actorId: user.id,
         action: "FILE_TYPE_POLICY_CREATED",
         targetType: "FileTypePolicy",
         targetId: policy.id.toString(),
         payload: { mimeType, isAllowed },
       },
-    })
+    });
 
     return successResponse({
       message: "تم إنشاء سياسة نوع الملف بنجاح",
-      policy: {
-        ...policy,
-        maxFileSize: policy.maxFileSize?.toString(),
-      },
+      policy: { ...policy, maxFileSize: policy.maxFileSize?.toString() },
     })
   } catch (error) {
     console.error("Create file type policy error:", error)

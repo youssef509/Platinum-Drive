@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth/auth'
+import { auth, getDbUser } from '@/lib/auth/auth'
 import prisma from '@/lib/db/prisma'
 
 export async function GET(request: Request) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json({ error: 'غير مصرح' }, { status: 401 })
+    }
+    const dbUser = await getDbUser()
+    if (!dbUser) {
       return NextResponse.json({ error: 'غير مصرح' }, { status: 401 })
     }
 
@@ -20,7 +24,7 @@ export async function GET(request: Request) {
     // Fetch recent files
     const files = await prisma.file.findMany({
       where: {
-        ownerId: session.user.id,
+        ownerId: dbUser.id,
         deletedAt: null,
         createdAt: {
           gte: dateThreshold,
