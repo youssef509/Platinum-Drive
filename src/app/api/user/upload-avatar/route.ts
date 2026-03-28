@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth, getDbUser } from "@/lib/auth/auth"
 import prisma from "@/lib/db/prisma"
-import { writeFile, mkdir } from "fs/promises"
-import { join } from "path"
-import { existsSync } from "fs"
+import { put } from "@vercel/blob"
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,7 +22,7 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData()
     const file = formData.get('image') as File
-    
+
     if (!file) {
       return NextResponse.json(
         { error: "لم يتم اختيار ملف" },
@@ -42,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024 // 5MB
+    const maxSize = 5 * 1024 * 1024
     if (file.size > maxSize) {
       return NextResponse.json(
         { error: "حجم الملف كبير جداً. الحد الأقصى 5MB" },
@@ -50,29 +48,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create upload directory if it doesn't exist
-    const uploadDir = join(process.cwd(), 'public', 'uploads', 'avatars')
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true })
-    }
-
-    // Generate unique filename
     const fileExtension = file.name.split('.').pop()
     const fileName = `${dbUser.id}-${Date.now()}.${fileExtension}`
-    const filePath = join(uploadDir, fileName)
 
-    // Convert file to buffer and save
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
-    await writeFile(filePath, buffer)
 
-    // Generate public URL
-    const imageUrl = `/uploads/avatars/${fileName}`
+    // Upload to Vercel Blob
+    const blob = await put(`avatars/${fileName}`, buffer, {
+      access: 'public',
+      contentType: file.type,
+    })
 
     // Update user in database
     const updatedUser = await prisma.user.update({
       where: { id: dbUser.id },
-      data: { image: imageUrl },
+      data: { image: blob.url },
       select: {
         id: true,
         name: true,
@@ -89,7 +80,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       message: "تم تحديث الصورة الشخصية بنجاح",
       user: updatedUser,
-      imageUrl,
+      imageUrl: blob.url,
     })
   } catch (error) {
     console.error("Image upload error:", error)

@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth, getDbUser } from '@/lib/auth/auth'
 import prisma from '@/lib/db/prisma'
-import { writeFile, mkdir } from 'fs/promises'
-import { join } from 'path'
-import { existsSync } from 'fs'
+import { put } from '@vercel/blob'
 import {
   isValidFileType,
   isValidFileSize,
@@ -12,7 +10,7 @@ import {
   FILE_SIZE_LIMITS,
 } from '@/lib/utils/file'
 import { checkStorageWarning, notifyStorageWarning, notifyStorageFull } from '@/lib/services/notification'
-import { compressImage, generateThumbnail, isProcessableImage } from '@/lib/utils/image'
+import { compressImage, isProcessableImage } from '@/lib/utils/image'
 
 // Configure route segment for large file uploads
 export const runtime = 'nodejs'
@@ -204,37 +202,11 @@ export async function POST(request: NextRequest) {
     const sanitizedName = sanitizeFilename(file.name)
     const uniqueFilename = generateUniqueFilename(sanitizedName)
 
-    // Create user directory if not exists
-    const userDir = join(process.cwd(), 'public', 'uploads', 'files', user.id)
-    if (!existsSync(userDir)) {
-      await mkdir(userDir, { recursive: true })
-    }
-
-    // Save file to disk
-    const filePath = join(userDir, uniqueFilename)
-    const relativePath = `/uploads/files/${user.id}/${uniqueFilename}`
-    
-    await writeFile(filePath, buffer)
-
-    // Check if thumbnail generation is enforced by system or enabled by user
-    const systemAutoThumbnailsSetting = await prisma.systemSettings.findUnique({
-      where: { key: 'upload.autoGenerateThumbnails' }
+    // Upload to Vercel Blob
+    const blob = await put(`files/${user.id}/${uniqueFilename}`, buffer, {
+      access: 'public',
+      contentType: file.type,
     })
-    const systemEnforcesThumbnails = systemAutoThumbnailsSetting?.value === true
-    const shouldGenerateThumbnails = systemEnforcesThumbnails || user.settings?.autoGenerateThumbnails
-
-    // Generate thumbnails if enabled
-    let thumbnailPath: string | null = null
-    if (shouldGenerateThumbnails) {
-      try {
-        thumbnailPath = await generateThumbnail(filePath, file.type)
-        if (thumbnailPath) {
-          console.log(`Thumbnail generated: ${thumbnailPath}`)
-        }
-      } catch (error) {
-        console.error('Thumbnail generation failed:', error)
-      }
-    }
 
     // Create file record in database
     const fileRecord = await prisma.file.create({
@@ -242,15 +214,15 @@ export async function POST(request: NextRequest) {
         name: file.name,
         ownerId: user.id,
         folderId: targetFolderId || null,
-        size: finalFileSize, // Use the actual saved file size
+        size: finalFileSize,
         mimeType: file.type,
-        storageKey: relativePath,
+        storageKey: blob.url,
         metadata: {
           originalName: file.name,
           uploadedAt: new Date().toISOString(),
           compressed: user.settings?.compressImages && isProcessableImage(file.type),
           originalSize: file.size,
-          thumbnail: thumbnailPath ? thumbnailPath.replace(process.cwd() + '/public', '') : null,
+          thumbnail: null,
         },
       },
       include: {
@@ -299,7 +271,7 @@ export async function POST(request: NextRequest) {
         mimeType: fileRecord.mimeType,
         createdAt: fileRecord.createdAt,
         folder: fileRecord.folder,
-        url: relativePath,
+        url: blob.url,
       },
     })
   } catch (error) {

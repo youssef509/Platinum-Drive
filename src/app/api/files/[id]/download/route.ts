@@ -56,21 +56,31 @@ export async function GET(
       )
     }
 
-    // Get file path
-    const filePath = join(process.cwd(), 'public', file.storageKey)
+    // Blob storage (storageKey is a full URL)
+    if (file.storageKey.startsWith('http')) {
+      const response = await fetch(file.storageKey)
+      if (!response.ok) {
+        return NextResponse.json({ error: 'الملف غير موجود' }, { status: 404 })
+      }
+      const buffer = await response.arrayBuffer()
+      return new NextResponse(buffer, {
+        headers: {
+          'Content-Type': file.mimeType,
+          'Content-Disposition': `attachment; filename="${encodeURIComponent(file.name)}"`,
+          'Content-Length': file.size.toString(),
+        },
+      })
+    }
 
-    // Check if file exists
+    // Fallback: local filesystem (development)
+    const filePath = join(process.cwd(), 'public', file.storageKey)
     if (!existsSync(filePath)) {
       return NextResponse.json(
         { error: 'الملف غير موجود على الخادم' },
         { status: 404 }
       )
     }
-
-    // Read file
     const fileBuffer = await readFile(filePath)
-
-    // Return file with proper headers
     return new NextResponse(fileBuffer as unknown as BodyInit, {
       headers: {
         'Content-Type': file.mimeType,
